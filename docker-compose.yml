@@ -1,16 +1,135 @@
-version: '3.8'
 services:
+  # --- MESSAGE BROKER ---
   rabbitmq:
-    image: rabbitmq:3-management
+    image: rabbitmq:3-management-alpine
+    container_name: devops_rabbitmq
     ports:
       - "5672:5672"
       - "15672:15672"
+    networks:
+      - devops-net
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
 
-  postgres:
-    image: postgres:15
+  # --- DATABASES ---
+  product-db:
+    image: mongo:latest
+    container_name: product_db
     environment:
-      POSTGRES_USER: admin
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+    ports:
+      - "27017:27017"
+    volumes:
+      - product_data:/data/db
+    networks:
+      - devops-net
+
+  order-db:
+    image: postgres:15-alpine
+    container_name: order_db
+    environment:
+      POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
-      POSTGRES_DB: devops_db
+      POSTGRES_DB: order_db
     ports:
       - "5432:5432"
+    volumes:
+      - order_data:/var/lib/postgresql/data
+    networks:
+      - devops-net
+
+  # --- MICROSERVICES ---
+  gateway:
+    build:
+      context: ./apps/gateway
+      dockerfile: Dockerfile
+    container_name: gateway_service
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+    depends_on:
+      - product-service
+    networks:
+      - devops-net
+
+  product-service:
+    build:
+      context: ./apps/product
+      dockerfile: Dockerfile
+    container_name: product_service
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - DB_URI=mongodb://admin:password@product-db:27017/product_db?authSource=admin
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+    depends_on:
+      product-db:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - devops-net
+
+  cart-service:
+    build:
+      context: ./apps/cart
+      dockerfile: Dockerfile
+    container_name: cart_service
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+    depends_on:
+      - rabbitmq
+    networks:
+      - devops-net
+
+  order-service:
+    build:
+      context: ./apps/order
+      dockerfile: Dockerfile
+    container_name: order_service
+    ports:
+      - "3003:3003"
+    environment:
+      - PORT=3003
+      - DB_URI=postgres://postgres:password@order-db:5432/order_db
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+    depends_on:
+      order-db:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - devops-net
+
+  payment-service:
+    build:
+      context: ./apps/payment
+      dockerfile: Dockerfile
+    container_name: payment_service
+    ports:
+      - "3004:3004"
+    environment:
+      - PORT=3004
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+    depends_on:
+      - rabbitmq
+    networks:
+      - devops-net
+
+volumes:
+  product_data:
+  order_data:
+
+networks:
+  devops-net:
+    driver: bridge
