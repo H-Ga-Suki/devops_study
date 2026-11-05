@@ -1,0 +1,281 @@
+// dockerfile cart
+# Stage 1: Builder - Chỉ dùng để cài đặt thư viện
+FROM node:18-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+# Dùng npm ci thay cho npm install để cài đúng version trong package-lock.json
+RUN npm ci 
+COPY . .
+
+# Stage 2: Production - Tạo image siêu nhẹ và bảo mật
+FROM node:18-alpine
+WORKDIR /app
+
+# Khai báo môi trường production để Node.js tối ưu hiệu năng
+ENV NODE_ENV=production
+
+# Chép code và thư viện đã build từ stage 1 sang
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/index.js ./
+
+# YÊU CẦU BẮT BUỘC: Không chạy quyền root. Dùng user 'node' có sẵn của image.
+USER node
+
+# YÊU CẦU BẮT BUỘC: Khai báo Healthcheck để hệ thống tự biết app sống hay chết
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3002/health', (r) => r.statusCode === 200 ? process.exit(0) : process.exit(1)).on('error', () => process.exit(1))"
+
+EXPOSE 3002
+CMD ["node", "index.js"]
+
+// index.js cart
+const express = require('express');
+const app = express();
+
+const PORT = process.env.PORT || 3002; 
+
+app.use(express.json());
+
+app.get('/', (req, res) => {
+  res.json({ message: 'Cart Service is running', port: PORT });
+});
+
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
+});
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Cart Service is running on port ${PORT}`);
+});
+
+//dockerfile gateway
+# Stage 1: Builder - Chỉ dùng để cài đặt thư viện
+FROM node:18-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+# Dùng npm ci thay cho npm install để cài đúng version trong package-lock.json
+RUN npm ci 
+COPY . .
+
+# Stage 2: Production - Tạo image siêu nhẹ và bảo mật
+FROM node:18-alpine
+WORKDIR /app
+
+# Khai báo môi trường production để Node.js tối ưu hiệu năng
+ENV NODE_ENV=production
+
+# Chép code và thư viện đã build từ stage 1 sang
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/index.js ./
+
+# YÊU CẦU BẮT BUỘC: Không chạy quyền root. Dùng user 'node' có sẵn của image.
+USER node
+
+# YÊU CẦU BẮT BUỘC: Khai báo Healthcheck để hệ thống tự biết app sống hay chết
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000/health', (r) => r.statusCode === 200 ? process.exit(0) : process.exit(1)).on('error', () => process.exit(1))"
+
+EXPOSE 3000
+CMD ["node", "index.js"]
+
+// index.js gateway
+const express = require('express');
+const app = express();
+
+const PORT = process.env.PORT || 3000; 
+
+app.use(express.json());
+
+app.get('/', (req, res) => {
+  res.json({ message: 'API Gateway is running', port: PORT });
+});
+
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
+});
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`API Gateway is running on port ${PORT}`);
+});
+
+//dockerfile order
+# Stage 1: Builder - Chỉ dùng để cài đặt thư viện
+FROM node:18-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+# Dùng npm ci thay cho npm install để cài đúng version trong package-lock.json
+RUN npm ci 
+COPY . .
+
+# Stage 2: Production - Tạo image siêu nhẹ và bảo mật
+FROM node:18-alpine
+WORKDIR /app
+
+# Khai báo môi trường production để Node.js tối ưu hiệu năng
+ENV NODE_ENV=production
+
+# Chép code và thư viện đã build từ stage 1 sang
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/index.js ./
+
+# YÊU CẦU BẮT BUỘC: Không chạy quyền root. Dùng user 'node' có sẵn của image.
+USER node
+
+# YÊU CẦU BẮT BUỘC: Khai báo Healthcheck để hệ thống tự biết app sống hay chết
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3003/health', (r) => r.statusCode === 200 ? process.exit(0) : process.exit(1)).on('error', () => process.exit(1))"
+
+EXPOSE 3003
+CMD ["node", "index.js"]
+
+//index.js order
+const express = require('express');
+const app = express();
+
+const PORT = process.env.PORT || 3003; 
+
+app.use(express.json());
+
+app.get('/', (req, res) => {
+  res.json({ message: 'Order Service is running', port: PORT });
+});
+
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
+});
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Order Service is running on port ${PORT}`);
+});
+
+//dockerfile payment
+# Stage 1: Builder - Chỉ dùng để cài đặt thư viện
+FROM node:18-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+# Dùng npm ci thay cho npm install để cài đúng version trong package-lock.json
+RUN npm ci 
+COPY . .
+
+# Stage 2: Production - Tạo image siêu nhẹ và bảo mật
+FROM node:18-alpine
+WORKDIR /app
+
+# Khai báo môi trường production để Node.js tối ưu hiệu năng
+ENV NODE_ENV=production
+
+# Chép code và thư viện đã build từ stage 1 sang
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/index.js ./
+
+# YÊU CẦU BẮT BUỘC: Không chạy quyền root. Dùng user 'node' có sẵn của image.
+USER node
+
+# YÊU CẦU BẮT BUỘC: Khai báo Healthcheck để hệ thống tự biết app sống hay chết
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3004/health', (r) => r.statusCode === 200 ? process.exit(0) : process.exit(1)).on('error', () => process.exit(1))"
+
+EXPOSE 3004
+CMD ["node", "index.js"]
+
+//index.js payment
+const express = require('express');
+const app = express();
+
+const PORT = process.env.PORT || 3004; 
+
+app.use(express.json());
+
+app.get('/', (req, res) => {
+  res.json({ message: 'Payment Service is running', port: PORT });
+});
+
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
+});
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Payment Service is running on port ${PORT}`);
+});
+
+//dockerfile product
+# Stage 1: Builder - Chỉ dùng để cài đặt thư viện
+FROM node:18-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+# Dùng npm ci thay cho npm install để cài đúng version trong package-lock.json
+RUN npm ci 
+COPY . .
+
+# Stage 2: Production - Tạo image siêu nhẹ và bảo mật
+FROM node:18-alpine
+WORKDIR /app
+
+# Khai báo môi trường production để Node.js tối ưu hiệu năng
+ENV NODE_ENV=production
+
+# Chép code và thư viện đã build từ stage 1 sang
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/index.js ./
+
+# YÊU CẦU BẮT BUỘC: Không chạy quyền root. Dùng user 'node' có sẵn của image.
+USER node
+
+# YÊU CẦU BẮT BUỘC: Khai báo Healthcheck để hệ thống tự biết app sống hay chết
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3001/health', (r) => r.statusCode === 200 ? process.exit(0) : process.exit(1)).on('error', () => process.exit(1))"
+
+EXPOSE 3001
+CMD ["node", "index.js"]
+
+//index.js product
+const express = require('express');
+const app = express();
+
+const PORT = process.env.PORT || 3001; 
+
+app.use(express.json());
+
+app.get('/', (req, res) => {
+  res.json({ message: 'Product Service is running', port: PORT });
+});
+
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
+});
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Product Service is running on port ${PORT}`);
+});
+
+//file .env
+# Database Credentials
+MONGO_INITDB_ROOT_USERNAME=admin
+MONGO_INITDB_ROOT_PASSWORD=password
+
+# Postgres chung cho cả Order và Payment (hoặc tách riêng user tùy ý)
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=password
+ORDER_DB_NAME=order_db
+PAYMENT_DB_NAME=payment_db
+
+# Microservice Ports
+PORT_GATEWAY=3000
+PORT_PRODUCT=3001
+PORT_CART=3002
+PORT_ORDER=3003
+PORT_PAYMENT=3004
+
+# Connection Strings
+DB_URI_PRODUCT=mongodb://admin:password@product-db:27017/product_db?authSource=admin
+DB_URI_ORDER=postgres://postgres:password@order-db:5432/order_db
+DB_URI_CART=redis://cart-db:6379
+DB_URI_PAYMENT=postgres://postgres:password@payment-db:5432/payment_db
+
+# Message Broker
+RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672

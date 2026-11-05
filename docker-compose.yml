@@ -12,38 +12,86 @@ services:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 15s
       timeout: 10s
-      retries: 5
-      start_period: 30s
+      retries: 10
+      start_period: 120s
 
   # --- DATABASES ---
   product-db:
     image: mongo:latest
     container_name: product_db
     environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
     ports:
       - "27017:27017"
     volumes:
       - product_data:/data/db
     networks:
       - devops-net
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh -u ${MONGO_INITDB_ROOT_USERNAME} -p ${MONGO_INITDB_ROOT_PASSWORD} --authenticationDatabase admin --eval 'db.adminCommand(\"ping\")' --quiet"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
 
   order-db:
     image: postgres:15-alpine
     container_name: order_db
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: order_db
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${ORDER_DB_NAME}
     ports:
       - "5432:5432"
     volumes:
       - order_data:/var/lib/postgresql/data
     networks:
       - devops-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${ORDER_DB_NAME}"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
 
-  # --- MICROSERVICES ---
+  cart-db:
+    image: redis:7-alpine
+    container_name: cart_db
+    ports:
+      - "6379:6379"
+    volumes:
+      - cart_data:/data
+    networks:
+      - devops-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  payment-db:
+    image: postgres:15-alpine
+    container_name: payment_db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${PAYMENT_DB_NAME}
+    ports:
+      - "5433:5432"
+    volumes:
+      - payment_data:/var/lib/postgresql/data
+    networks:
+      - devops-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${PAYMENT_DB_NAME}"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+
+ # --- MICROSERVICES ---
   gateway:
     build:
       context: ./apps/gateway
@@ -51,10 +99,19 @@ services:
     container_name: gateway_service
     ports:
       - "3000:3000"
+    env_file:
+      - .env
     environment:
-      - PORT=3000
+      PORT: ${PORT_GATEWAY}
     depends_on:
-      - product-service
+      product-service:
+        condition: service_healthy
+      order-service:
+        condition: service_healthy
+      cart-service:
+        condition: service_healthy
+      payment-service:
+        condition: service_healthy
     networks:
       - devops-net
 
@@ -65,13 +122,14 @@ services:
     container_name: product_service
     ports:
       - "3001:3001"
+    env_file:
+      - .env
     environment:
-      - PORT=3001
-      - DB_URI=mongodb://admin:password@product-db:27017/product_db?authSource=admin
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+      PORT: ${PORT_PRODUCT}
+      DB_URI: ${DB_URI_PRODUCT}
     depends_on:
       product-db:
-        condition: service_started
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
     networks:
@@ -84,11 +142,16 @@ services:
     container_name: cart_service
     ports:
       - "3002:3002"
+    env_file:
+      - .env
     environment:
-      - PORT=3002
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+      PORT: ${PORT_CART}
+      DB_URI: ${DB_URI_CART}
     depends_on:
-      - rabbitmq
+      cart-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     networks:
       - devops-net
 
@@ -99,13 +162,14 @@ services:
     container_name: order_service
     ports:
       - "3003:3003"
+    env_file:
+      - .env
     environment:
-      - PORT=3003
-      - DB_URI=postgres://postgres:password@order-db:5432/order_db
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+      PORT: ${PORT_ORDER}
+      DB_URI: ${DB_URI_ORDER}
     depends_on:
       order-db:
-        condition: service_started
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
     networks:
@@ -118,17 +182,24 @@ services:
     container_name: payment_service
     ports:
       - "3004:3004"
+    env_file:
+      - .env
     environment:
-      - PORT=3004
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+      PORT: ${PORT_PAYMENT}
+      DB_URI: ${DB_URI_PAYMENT}
     depends_on:
-      - rabbitmq
+      payment-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     networks:
       - devops-net
 
 volumes:
   product_data:
   order_data:
+  cart_data:
+  payment_data:
 
 networks:
   devops-net:
