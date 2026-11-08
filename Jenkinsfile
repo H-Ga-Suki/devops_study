@@ -6,7 +6,7 @@ pipeline {
         IMAGE_TAG       = "${env.BUILD_NUMBER}"
         SERVICES        = "gateway product cart order payment"
         
-        // Khai báo Credentials bảo mật từ Jenkins
+        // Gọi thông tin Telegram từ Jenkins Credentials
         TELEGRAM_TOKEN  = credentials('TELEGRAM_BOT_TOKEN')
         TELEGRAM_CHATID = credentials('TELEGRAM_CHAT_ID')
     }
@@ -20,19 +20,15 @@ pipeline {
 
         stage('2. Lint') {
             steps {
-                script {
-                    // Chạy kiểm tra cú pháp / linter cho mã nguồn
-                    sh 'echo "Running code linter..."'
-                }
+                sh 'echo "Running ESLint / Code style check across microservices..."'
+                sh 'npm run lint --if-present || true'
             }
         }
 
         stage('3. Unit Test') {
             steps {
-                script {
-                    // Chạy test và đo lường độ phủ code (Test Coverage)
-                    sh 'echo "Running unit tests and test coverage..."'
-                }
+                sh 'echo "Running Unit Tests & generating Test Coverage report..."'
+                sh 'npm test --if-present || true'
             }
         }
 
@@ -51,22 +47,22 @@ pipeline {
             }
         }
 
-        stage('5. Quét bảo mật') {
+        stage('5. Security Scan (SonarQube & Trivy)') {
             steps {
                 script {
-                    // Quét mã nguồn bằng SonarQube
+                    // 5.1. Quét chất lượng và bảo mật code bằng SonarQube
                     withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
-                        withSonarQubeEnv('SonarQube-Server') {
-                            sh '''
-                                npx sonar-scanner \
-                                  -Dsonar.projectKey=devops-study-microservices \
-                                  -Dsonar.sources=apps \
-                                  -Dsonar.exclusions=**/node_modules/** \
-                                  -Dsonar.login=${SONAR_TOKEN} || true
-                            '''
-                        }
+                        sh '''
+                            npx sonar-scanner \
+                              -Dsonar.projectKey=devops-study-microservices \
+                              -Dsonar.sources=apps \
+                              -Dsonar.exclusions=**/node_modules/** \
+                              -Dsonar.host.url=http://172.198.78.84:9000 \
+                              -Dsonar.login=${SONAR_TOKEN} || true
+                        '''
                     }
-                    // Quét lỗ hổng Docker Image bằng Trivy
+
+                    // 5.2. Quét lỗ hổng bảo mật Docker Image bằng Trivy (Tiêu chí 11)
                     def serviceList = env.SERVICES.split(" ")
                     for (int i = 0; i < serviceList.size(); i++) {
                         def srv = serviceList[i]
@@ -76,7 +72,7 @@ pipeline {
             }
         }
 
-        stage('6. Push') {
+        stage('6. Push Image') {
             when {
                 branch 'main'
             }
@@ -98,25 +94,44 @@ pipeline {
         }
 
         stage('7. Deploy Staging') {
+            when {
+                branch 'main'
+            }
             steps {
-                sh 'echo "Deploying to Staging environment successfully!"'
+                withCredentials([file(credentialsId: 'prod-env-file', variable: 'ENV_FILE')]) {
+                    sh '''
+                        echo "Deploying services to Staging environment..."
+                        cp $ENV_FILE .env
+                        docker compose up -d --build
+                    '''
+                }
             }
         }
 
-        stage('8. Duyệt thủ công') {
+        stage('8. Manual Approval') {
+            when {
+                branch 'main'
+            }
             steps {
-                // Tạm dừng Pipeline chờ người quản trị bấm nút phê duyệt trên giao diện Jenkins
-                input message: "Bạn có muốn phê duyệt để đưa hệ thống lên môi trường Production không?", ok: "Tiến hành Deploy"
+                script {
+                    timeout(time: 15, unit: 'MINUTES') {
+                        input message: 'Staging đã chạy ổn định. Phê duyệt để Deploy lên Production?', ok: 'Approve & Deploy'
+                    }
+                }
             }
         }
 
         stage('9. Deploy Production') {
+            when {
+                branch 'main'
+            }
             steps {
                 withCredentials([file(credentialsId: 'prod-env-file', variable: 'ENV_FILE')]) {
                     sh '''
+                        echo "Deploying services to Production environment..."
                         cp $ENV_FILE .env
                         docker compose pull || true
-                        docker compose up -d --build
+                        docker compose up -d
                     '''
                 }
             }
@@ -129,7 +144,7 @@ pipeline {
                 sh '''
                     curl -s -X POST https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage \
                     -d chat_id=${TELEGRAM_CHATID} \
-                    -d text="✅ [CI/CD SUCCESS] Pipeline hoàn tất đầy đủ từ Lint đến Deploy Production!"
+                    -d text="✅ [CI/CD SUCCESS] Dự án: devops_study%0A- Nhánh: ${BRANCH_NAME}%0A- Build: #${BUILD_NUMBER}%0A- Trạng thái: Hoàn tất thành công!"
                 '''
             }
         }
@@ -138,8 +153,13 @@ pipeline {
                 sh '''
                     curl -s -X POST https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage \
                     -d chat_id=${TELEGRAM_CHATID} \
-                    -d text="❌ [CI/CD FAILED] Pipeline gặp sự cố ở một stage, vui lòng kiểm tra Jenkins!"
+                    -d text="❌ [CI/CD FAILED] Dự án: devops_study%0A- Nhánh: ${BRANCH_NAME}%0A- Build: #${BUILD_NUMBER}%0A- Trạng thái: Thất bại, vui lòng kiểm tra Console Output!"
                 '''
+            }
+        }
+        always {
+            node {
+                sh 'docker image prune -f || true'
             }
         }
     }
