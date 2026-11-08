@@ -1,0 +1,32 @@
+---
+- name: Cap nhat danh sach goi
+  apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Cai goi co ban
+  apt:
+    name: [git, curl, vim, htop, ufw, unzip]
+    state: present
+
+- name: Dat timezone
+  timezone:
+    name: "{{ timezone | default('Asia/Ho_Chi_Minh') }}"
+
+- name: Cho phep SSH truoc khi bat firewall
+  ufw:
+    rule: allow
+    port: "22"
+    proto: tcp
+
+- name: Mo cac cong cua cua hang
+  ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop: ["3000", "8080"]
+
+- name: Bat firewall
+  ufw:
+    state: enabled
+    policy: deny

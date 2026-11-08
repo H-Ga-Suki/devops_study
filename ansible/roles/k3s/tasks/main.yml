@@ -1,0 +1,31 @@
+---
+- name: Kiem tra K3s da cai chua
+  stat:
+    path: /usr/local/bin/k3s
+  register: k3s_bin
+
+- name: Tai script cai K3s
+  get_url:
+    url: https://get.k3s.io
+    dest: /tmp/k3s-install.sh
+    mode: "0755"
+  when: not k3s_bin.stat.exists
+
+- name: Cai K3s
+  command: /tmp/k3s-install.sh
+  environment:
+    INSTALL_K3S_VERSION: "{{ k3s_version | default('') }}"
+    K3S_KUBECONFIG_MODE: "644"
+  when: not k3s_bin.stat.exists
+
+- name: Bat dich vu K3s
+  service:
+    name: k3s
+    state: started
+    enabled: true
+
+- name: Mo cong Kubernetes API
+  ufw:
+    rule: allow
+    port: "6443"
+    proto: tcp
