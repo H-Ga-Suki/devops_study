@@ -140,27 +140,21 @@ pipeline {
 
     post {
         success {
-            node {
-                sh '''
-                    curl -s -X POST https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage \
-                    -d chat_id=${TELEGRAM_CHATID} \
-                    -d text="✅ [CI/CD SUCCESS] Dự án: devops_study%0A- Nhánh: ${BRANCH_NAME}%0A- Build: #${BUILD_NUMBER}%0A- Trạng thái: Hoàn tất thành công!"
-                '''
-            }
+            sh '''
+                curl -s -X POST https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage \
+                -d chat_id=${TELEGRAM_CHATID} \
+                -d text="✅ [CI/CD SUCCESS] Dự án: devops_study%0A- Nhánh: ${BRANCH_NAME}%0A- Build: #${BUILD_NUMBER}%0A- Trạng thái: Hoàn tất thành công!"
+            '''
         }
         failure {
-            node {
-                sh '''
-                    curl -s -X POST https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage \
-                    -d chat_id=${TELEGRAM_CHATID} \
-                    -d text="❌ [CI/CD FAILED] Dự án: devops_study%0A- Nhánh: ${BRANCH_NAME}%0A- Build: #${BUILD_NUMBER}%0A- Trạng thái: Thất bại, vui lòng kiểm tra Console Output!"
-                '''
-            }
+            sh '''
+                curl -s -X POST https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage \
+                -d chat_id=${TELEGRAM_CHATID} \
+                -d text="❌ [CI/CD FAILED] Dự án: devops_study%0A- Nhánh: ${BRANCH_NAME}%0A- Build: #${BUILD_NUMBER}%0A- Trạng thái: Thất bại, vui lòng kiểm tra Console Output!"
+            '''
         }
         always {
-            node {
-                sh 'docker image prune -f || true'
-            }
+            sh 'docker image prune -f || true'
         }
     }
 }
