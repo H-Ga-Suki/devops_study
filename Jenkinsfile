@@ -28,7 +28,8 @@ pipeline {
         stage('3. Unit Test') {
             steps {
                 sh 'echo "Running Unit Tests & generating Test Coverage report..."'
-                sh 'npm test --if-present || true'
+                // sh 'npm test --if-present || true'
+                sh 'exit 1'
             }
         }
 
