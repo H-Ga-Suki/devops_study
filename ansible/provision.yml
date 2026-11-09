@@ -1,0 +1,8 @@
+---
+- name: Chuan bi may chu
+  hosts: store
+  become: true
+  roles:
+    - common
+    - docker
+    - k3s
