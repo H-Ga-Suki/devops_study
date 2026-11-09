@@ -28,13 +28,7 @@ pipeline {
         stage('3. Unit Test') {
             steps {
                 sh 'echo "Running Unit Tests & generating Test Coverage report..."'
-<<<<<<< HEAD
                 sh 'npm test --if-present || true'
-        
-=======
-                // sh 'npm test --if-present || true'
-                sh 'exit 1'
->>>>>>> backup-cong
             }
         }
 
@@ -68,7 +62,7 @@ pipeline {
                         '''
                     }
 
-                    // 5.2. Quét lỗ hổng bảo mật Docker Image bằng Trivy (Tiêu chí 11)
+                    // 5.2. Quét lỗ hổng bảo mật Docker Image bằng Trivy
                     def serviceList = env.SERVICES.split(" ")
                     for (int i = 0; i < serviceList.size(); i++) {
                         def srv = serviceList[i]
