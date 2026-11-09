@@ -24,8 +24,14 @@
     state: started
     enabled: true
 
-- name: Mo cong Kubernetes API
+- name: Mo cac cong K3s
   ufw:
     rule: allow
-    port: "6443"
-    proto: tcp
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+  loop:
+    - { port: "6443", proto: tcp }
+    - { port: "10250", proto: tcp }
+    - { port: "8472", proto: udp }
+    - { port: "80", proto: tcp }
+    - { port: "443", proto: tcp }
