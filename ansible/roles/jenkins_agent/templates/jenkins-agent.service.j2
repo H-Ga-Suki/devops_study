@@ -5,7 +5,7 @@ After=network.target docker.service
 [Service]
 User={{ jenkins_agent_user }}
 WorkingDirectory={{ jenkins_agent_home }}
-ExecStart=/usr/bin/java -jar {{ jenkins_agent_home }}/agent.jar -url {{ jenkins_url }} -name {{ jenkins_agent_name }} -secret {{ jenkins_agent_secret }} -webSocket -workDir {{ jenkins_agent_home }}
+ExecStart=/usr/bin/java -jar {{ jenkins_agent_home }}/agent.jar -url {{ jenkins_agent_url }} -name {{ jenkins_agent_name }} -secret {{ jenkins_agent_secret }} -webSocket -workDir {{ jenkins_agent_home }}
 Restart=always
 RestartSec=10
 
