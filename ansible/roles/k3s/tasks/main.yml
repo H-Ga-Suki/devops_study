@@ -25,14 +25,23 @@
     state: started
     enabled: true
 
-- name: Mo cac cong K3s
+- name: Mo cong API server cua K3s
   community.general.ufw:
     rule: allow
-    port: "{{ item.port }}"
-    proto: "{{ item.proto }}"
+    port: "6443"
+    proto: tcp
+
+- name: Mo cong HTTP va HTTPS cho Traefik
+  community.general.ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop: ["80", "443"]
+
+- name: Cho phep traffic tu dai pod va service cua K3s
+  community.general.ufw:
+    rule: allow
+    from_ip: "{{ item }}"
   loop:
-    - { port: "6443", proto: tcp }
-    - { port: "10250", proto: tcp }
-    - { port: "8472", proto: udp }
-    - { port: "80", proto: tcp }
-    - { port: "443", proto: tcp }
+    - 10.42.0.0/16
+    - 10.43.0.0/16
