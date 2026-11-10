@@ -81,3 +81,9 @@ Chạy một lần trên máy chạy Ansible, vì các role dùng module `ufw` v
 ```bash
 ansible-galaxy collection install -r requirements.yml
 ```
+
+## Lưu ý bảo mật
+
+- Docker và `ufw`: cổng container publish bằng Docker (ví dụ 5432, 27017, 6379) có thể đi vòng qua luật `ufw`. Nên chặn các cổng này bằng NSG của Azure, hoặc không publish cổng database ra ngoài.
+- K3s: script cài không ghim phiên bản theo mặc định. Muốn ghim, đặt biến `k3s_version` theo định dạng `vX.Y.Z+k3s1`, ví dụ `-e k3s_version=vX.Y.Z+k3s1`.
+- K3s: file kubeconfig đang để quyền 644 (mọi user trên máy đều đọc được). Chấp nhận cho môi trường học tập, nên siết lại khi dùng thật.
