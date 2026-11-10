@@ -6,3 +6,4 @@
     - common
     - docker
     - k3s
+    - jenkins_agent
