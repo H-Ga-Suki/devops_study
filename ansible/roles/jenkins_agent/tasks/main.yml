@@ -1,0 +1,33 @@
+---
+- name: Cai Java
+  ansible.builtin.apt:
+    name: openjdk-17-jre-headless
+    state: present
+    update_cache: true
+
+- name: Tao user jenkins
+  ansible.builtin.user:
+    name: "{{ jenkins_agent_user }}"
+    home: "{{ jenkins_agent_home }}"
+    shell: /bin/bash
+    create_home: true
+
+- name: Cho user jenkins dung Docker
+  ansible.builtin.user:
+    name: "{{ jenkins_agent_user }}"
+    groups: docker
+    append: true
+
+- name: Tai agent.jar tu Jenkins
+  ansible.builtin.get_url:
+    url: "{{ jenkins_agent_url }}/jnlpJars/agent.jar"
+    dest: "{{ jenkins_agent_home }}/agent.jar"
+    owner: "{{ jenkins_agent_user }}"
+    mode: "0644"
+
+- name: Tao service chay agent
+  ansible.builtin.template:
+    src: jenkins-agent.service.j2
+    dest: /etc/systemd/system/jenkins-agent.service
+    mode: "0600"
+  notify: Restart jenkins agent

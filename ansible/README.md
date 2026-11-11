@@ -61,7 +61,7 @@ Chạy lại nhiều lần không gây thay đổi nếu máy đã đúng trạn
 |------|-----------|
 | `common` | Cập nhật gói, cài git/curl/vim/htop/ufw/unzip, đặt múi giờ, bật firewall (mở cổng 22, 3000, 8080) |
 | `docker` | Cài Docker Engine và Docker Compose từ repo chính thức, bật dịch vụ |
-| `k3s` | Cài K3s nếu chưa có, bật dịch vụ, mở cổng 6443 |
+| `k3s` | Cài K3s nếu chưa có, bật dịch vụ, mở cổng 6443, 80, 443 và cho phép dải pod/service (10.42.0.0/16, 10.43.0.0/16) |
 | `jenkins_agent` | Cài Java và kết nối agent với Jenkins (chưa hoàn thành) |
 
 ## Lưu ý
@@ -73,3 +73,17 @@ Chạy lại nhiều lần không gây thay đổi nếu máy đã đúng trạn
 
 Tự động hóa việc chuẩn bị máy chủ và triển khai hệ thống cửa hàng trực tuyến bằng Ansible.
 
+
+## Cài collection
+
+Chạy một lần trên máy chạy Ansible, vì các role dùng module `ufw` và `timezone` của `community.general`:
+
+```bash
+ansible-galaxy collection install -r requirements.yml
+```
+
+## Lưu ý bảo mật
+
+- Docker và `ufw`: cổng container publish bằng Docker (ví dụ 5432, 27017, 6379) có thể đi vòng qua luật `ufw`. Nên chặn các cổng này bằng NSG của Azure, hoặc không publish cổng database ra ngoài.
+- K3s: script cài không ghim phiên bản theo mặc định. Muốn ghim, đặt biến `k3s_version` theo định dạng `vX.Y.Z+k3s1`, ví dụ `-e k3s_version=vX.Y.Z+k3s1`.
+- K3s: file kubeconfig đang để quyền 644 (mọi user trên máy đều đọc được). Chấp nhận cho môi trường học tập, nên siết lại khi dùng thật.

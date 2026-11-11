@@ -1,0 +1,6 @@
+---
+jenkins_agent_url: "http://localhost:8080"
+jenkins_agent_name: "agent-1"
+jenkins_agent_secret: "CHANGE_ME"
+jenkins_agent_user: "jenkins"
+jenkins_agent_home: "/home/jenkins"
