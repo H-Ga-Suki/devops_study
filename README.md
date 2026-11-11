@@ -218,9 +218,9 @@ You can verify a finding found by gitleaks using a `git log` command.
 Example output:
 
 ```
-Finding:     aws_secret="AKIAIMNOJVGFDXXXE4OA"
+Finding:     aws_secret="Nhap_key_vao_day"
 RuleID:      aws-access-token
-Secret       AKIAIMNOJVGFDXXXE4OA
+Secret     
 Entropy:     3.65
 File:        checks_test.go
 Line:        37
