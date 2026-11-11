@@ -37,6 +37,9 @@ pipeline {
             }
         }
         stage('5. Deploy to Staging (Azure VM)') {
+            when {
+                branch 'main' // CHỈ CHẠY KHI NHÁNH LÀ MAIN
+            }
             steps {
                 echo 'Deploying application to Azure VM...'
                 sh """
