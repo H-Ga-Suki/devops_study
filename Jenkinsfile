@@ -3,7 +3,7 @@ pipeline {
     environment {
         TELEGRAM_TOKEN = '9164841421:AAEpXxv7FCxz8pBwyzjIERNNsiYvxn_QdkM' // gitleaks:allow
         CHAT_ID = '8790380429'
-        STAGING_IP = '172.198.139.227' // IP của Azure VM
+        STAGING_IP = '172.198.139.227'
     }
     stages {
         stage('1. Checkout') {
@@ -36,35 +36,31 @@ pipeline {
                 sh 'trivy fs --exit-code 0 --no-progress .'
             }
         }
-        
-        // CHÈN THÊM STAGE DEPLOY BẰNG ANSIBLE VÀO ĐÂY
         stage('5. Deploy to Staging (Azure VM)') {
             steps {
                 echo 'Deploying application to Azure VM...'
-                sh '''
-                # Tạo file playbook deploy.yml tạm thời
-                cat <<EOF > ansible/deploy.yml
-                - name: Deploy Microservices
-                  hosts: staging
-                  become: yes
-                  tasks:
-                    - name: Copy project code
-                      synchronize:
-                        src: ../
-                        dest: /home/adminuser/devops_study/
-                        rsync_opts:
-                          - "--exclude=.git"
-                          - "--exclude=envs"
+                sh """
+mkdir -p ansible
+cat << 'EOF' > ansible/deploy.yml
+- name: Deploy Microservices
+  hosts: staging
+  become: yes
+  tasks:
+    - name: Copy project code
+      synchronize:
+        src: ../
+        dest: /home/adminuser/devops_study/
+        rsync_opts:
+          - "--exclude=.git"
+          - "--exclude=envs"
 
-                    - name: Run Docker Compose
-                      command: docker-compose up -d --build
-                      args:
-                        chdir: /home/adminuser/devops_study/
-                EOF
-                
-                # Chạy Ansible Playbook đẩy code sang Azure VM
-                ansible-playbook -i ansible/hosts ansible/deploy.yml
-                '''
+    - name: Run Docker Compose
+      command: docker-compose up -d --build
+      args:
+        chdir: /home/adminuser/devops_study/
+EOF
+ansible-playbook -i ansible/hosts ansible/deploy.yml
+                """
             }
         }
     }
