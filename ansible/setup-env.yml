@@ -1,0 +1,22 @@
+- name: Setup Môi trường Staging trên Azure VM
+  hosts: staging
+  become: yes # Chạy với quyền sudo
+  tasks:
+    - name: Cập nhật hệ thống
+      apt: 
+        update_cache: yes 
+        cache_valid_time: 3600
+
+    - name: Cài đặt Git, Docker và Docker Compose
+      apt:
+        name: 
+          - git
+          - docker.io
+          - docker-compose
+        state: present
+
+    - name: Cấp quyền chạy Docker cho adminuser
+      user:
+        name: adminuser
+        groups: docker
+        append: yes

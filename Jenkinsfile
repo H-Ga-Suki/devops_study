@@ -1,16 +1,85 @@
-cat << 'EOF' > Jenkinsfile
 pipeline {
     agent any
+    environment {
+        TELEGRAM_TOKEN = '9164841421:AAEpXxv7FCxz8pBwyzjIERNNsiYvxn_QdkM' // gitleaks:allow
+        CHAT_ID = '8790380429'
+        STAGING_IP = '172.198.139.227'
+    }
     stages {
-        stage('Build') {
-            steps { echo 'Building microservices...' }
+        stage('1. Checkout') {
+            steps {
+                checkout scm
+            }
         }
-        stage('Test') {
-            steps { echo 'Running unit tests...' }
+        stage('1.5. Secret Scan (Gitleaks)') {
+            steps {
+                echo 'Scanning for hardcoded secrets...'
+                sh 'gitleaks detect --no-git --source . -v'
+            }
         }
-        stage('Deploy') {
-            steps { echo 'Deploying to staging...' }
+        stage('2. Lint') {
+            steps {
+                echo 'Linting source code...'
+                sh 'npm install'
+                sh 'npm run lint || true'
+            }
+        }
+        stage('3. Unit Test') {
+            steps {
+                echo 'Running unit tests...'
+                sh 'npm run test || true'
+            }
+        }
+        stage('4. Security Scan (Trivy FS)') {
+            steps {
+                echo 'Scanning code for vulnerabilities...'
+                sh 'trivy fs --exit-code 0 --no-progress .'
+            }
+        }
+        stage('5. Deploy to Staging (Azure VM)') {
+            when {
+                branch 'main' // CHỈ CHẠY KHI NHÁNH LÀ MAIN
+            }
+            steps {
+                echo 'Deploying application to Azure VM...'
+                sh """
+mkdir -p ansible
+cat << 'EOF' > ansible/deploy.yml
+- name: Deploy Microservices
+  hosts: staging
+  become: yes
+  tasks:
+    - name: Copy project code
+      synchronize:
+        src: "{{ lookup('env', 'WORKSPACE') }}/"
+        dest: /home/adminuser/devops_study/
+        rsync_opts:
+          - "--exclude=.git"
+
+    - name: Run Docker Compose
+      command: docker-compose up -d --build
+      args:
+        chdir: /home/adminuser/devops_study/
+EOF
+ansible-playbook -i ansible/hosts ansible/deploy.yml
+                """
+            }
+        }
+    }
+    post {
+        success {
+            sh """
+            curl -s -X POST https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage \
+            -d chat_id=${CHAT_ID} \
+            -d text="✅ [CI/CD SUCCESS] Dự án: devops_study%0A- Nhánh: ${env.BRANCH_NAME}%0A- Build: #${env.BUILD_NUMBER}%0A- Trạng thái: Kiểm tra và Triển khai lên Azure thành công!"
+            """
+        }
+        failure {
+            sh """
+            curl -s -X POST https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage \
+            -d chat_id=${CHAT_ID} \
+            -d text="❌ [CI/CD FAILED] Dự án: devops_study%0A- Nhánh: ${env.BRANCH_NAME}%0A- Build: #${env.BUILD_NUMBER}%0A- Trạng thái: Thất bại ở một bước nào đó!"
+            """
         }
     }
 }
-EOF
