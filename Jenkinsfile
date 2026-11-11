@@ -37,32 +37,32 @@ pipeline {
             }
         }
         stage('5. Deploy to Staging (Azure VM)') {
-        steps {
-            echo 'Deploying application to Azure VM...'
-            sh """
+            steps {
+                echo 'Deploying application to Azure VM...'
+                sh """
 mkdir -p ansible
 cat << 'EOF' > ansible/deploy.yml
 - name: Deploy Microservices
-hosts: staging
-become: yes
-tasks:
-- name: Copy project code
-  synchronize:
-    src: "{{ lookup('env', 'WORKSPACE') }}/"
-    dest: /home/adminuser/devops_study/
-    rsync_opts:
-      - "--exclude=.git"
+  hosts: staging
+  become: yes
+  tasks:
+    - name: Copy project code
+      synchronize:
+        src: "{{ lookup('env', 'WORKSPACE') }}/"
+        dest: /home/adminuser/devops_study/
+        rsync_opts:
+          - "--exclude=.git"
 
-- name: Run Docker Compose
-  command: docker-compose up -d --build
-  args:
-    chdir: /home/adminuser/devops_study/
+    - name: Run Docker Compose
+      command: docker-compose up -d --build
+      args:
+        chdir: /home/adminuser/devops_study/
 EOF
 ansible-playbook -i ansible/hosts ansible/deploy.yml
-            """
+                """
+            }
         }
     }
-}
     post {
         success {
             sh """
