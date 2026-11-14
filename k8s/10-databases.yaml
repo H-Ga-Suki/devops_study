@@ -1,0 +1,162 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: {name: product-data, namespace: shop}
+spec:
+  accessModes: [ReadWriteOnce]
+  resources: {requests: {storage: 2Gi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: product-db, namespace: shop}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector: {matchLabels: {app: product-db}}
+  template:
+    metadata: {labels: {app: product-db}}
+    spec:
+      containers:
+        - name: mongo
+          image: mongo:7
+          ports: [{containerPort: 27017}]
+          env:
+            - name: MONGO_INITDB_ROOT_USERNAME
+              valueFrom: {secretKeyRef: {name: app-secrets, key: MONGO_INITDB_ROOT_USERNAME}}
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              valueFrom: {secretKeyRef: {name: app-secrets, key: MONGO_INITDB_ROOT_PASSWORD}}
+          resources:
+            requests: {memory: 256Mi, cpu: 100m}
+            limits: {memory: 512Mi}
+          readinessProbe:
+            tcpSocket: {port: 27017}
+            initialDelaySeconds: 15
+          volumeMounts: [{name: data, mountPath: /data/db}]
+      volumes:
+        - name: data
+          persistentVolumeClaim: {claimName: product-data}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: product-db, namespace: shop}
+spec:
+  selector: {app: product-db}
+  ports: [{port: 27017}]
+---
+# ---------- order-db (Postgres) ----------
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: {name: order-data, namespace: shop}
+spec:
+  accessModes: [ReadWriteOnce]
+  resources: {requests: {storage: 1Gi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: order-db, namespace: shop}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector: {matchLabels: {app: order-db}}
+  template:
+    metadata: {labels: {app: order-db}}
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:15-alpine
+          ports: [{containerPort: 5432}]
+          env:
+            - name: POSTGRES_USER
+              valueFrom: {secretKeyRef: {name: app-secrets, key: POSTGRES_USER}}
+            - name: POSTGRES_PASSWORD
+              valueFrom: {secretKeyRef: {name: app-secrets, key: POSTGRES_PASSWORD}}
+            - name: POSTGRES_DB
+              valueFrom: {configMapKeyRef: {name: app-config, key: ORDER_DB_NAME}}
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          resources:
+            requests: {memory: 128Mi, cpu: 50m}
+            limits: {memory: 256Mi}
+          readinessProbe:
+            exec: {command: ["pg_isready", "-U", "postgres"]}
+            initialDelaySeconds: 10
+          volumeMounts: [{name: data, mountPath: /var/lib/postgresql/data}]
+      volumes:
+        - name: data
+          persistentVolumeClaim: {claimName: order-data}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: order-db, namespace: shop}
+spec:
+  selector: {app: order-db}
+  ports: [{port: 5432}]
+---
+# ---------- cart-db (Redis) ----------
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: {name: cart-data, namespace: shop}
+spec:
+  accessModes: [ReadWriteOnce]
+  resources: {requests: {storage: 500Mi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: cart-db, namespace: shop}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector: {matchLabels: {app: cart-db}}
+  template:
+    metadata: {labels: {app: cart-db}}
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          ports: [{containerPort: 6379}]
+          resources:
+            requests: {memory: 32Mi, cpu: 20m}
+            limits: {memory: 128Mi}
+          readinessProbe:
+            exec: {command: ["redis-cli", "ping"]}
+          volumeMounts: [{name: data, mountPath: /data}]
+      volumes:
+        - name: data
+          persistentVolumeClaim: {claimName: cart-data}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: cart-db, namespace: shop}
+spec:
+  selector: {app: cart-db}
+  ports: [{port: 6379}]
+---
+# ---------- rabbitmq ----------
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: rabbitmq, namespace: shop}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: rabbitmq}}
+  template:
+    metadata: {labels: {app: rabbitmq}}
+    spec:
+      containers:
+        - name: rabbitmq
+          image: rabbitmq:3-management-alpine
+          ports: [{containerPort: 5672}, {containerPort: 15672}]
+          resources:
+            requests: {memory: 192Mi, cpu: 100m}
+            limits: {memory: 384Mi}
+          readinessProbe:
+            exec: {command: ["rabbitmq-diagnostics", "-q", "ping"]}
+            initialDelaySeconds: 60
+            periodSeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata: {name: rabbitmq, namespace: shop}
+spec:
+  selector: {app: rabbitmq}
+  ports:
+    - {name: amqp, port: 5672}
+    - {name: mgmt, port: 15672}
