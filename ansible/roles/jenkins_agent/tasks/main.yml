@@ -1,9 +1,10 @@
 ---
 - name: Cai Java
   ansible.builtin.apt:
-    name: openjdk-17-jre-headless
+    name: openjdk-21-jre-headless
     state: present
     update_cache: true
+  notify: Restart jenkins agent
 
 - name: Tao user jenkins
   ansible.builtin.user:
