@@ -33,6 +33,7 @@
       - docker-compose-plugin
     state: present
     update_cache: true
+  notify: Restart docker
 
 - name: Bat dich vu Docker
   ansible.builtin.service:
