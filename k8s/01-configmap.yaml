@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: shop
+data:
+  PORT_GATEWAY: "3000"
+  PORT_PRODUCT: "3001"
+  PORT_CART: "3002"
+  PORT_ORDER: "3003"
+  PORT_PAYMENT: "3004"
+  ORDER_DB_NAME: "<tên db order>"
+  PAYMENT_DB_NAME: "<tên db payment>"
+  # Thêm các biến KHÔNG nhạy cảm khác từ .env (URL giữa các service, RabbitMQ host...)

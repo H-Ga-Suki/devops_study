@@ -1,0 +1,6 @@
+---
+- name: Cai k3s
+  hosts: store
+  become: true
+  roles:
+    - k3s

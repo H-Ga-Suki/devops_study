@@ -1,0 +1,34 @@
+apiVersion: v1
+kind: Service
+metadata: {name: gateway, namespace: shop}
+spec:
+  selector: {app: gateway, color: blue}
+  ports: [{port: 3000, targetPort: 3000}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: product-service, namespace: shop}
+spec:
+  selector: {app: product-service, color: blue}
+  ports: [{port: 3001, targetPort: 3001}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: cart-service, namespace: shop}
+spec:
+  selector: {app: cart-service, color: blue}
+  ports: [{port: 3002, targetPort: 3002}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: order-service, namespace: shop}
+spec:
+  selector: {app: order-service, color: blue}
+  ports: [{port: 3003, targetPort: 3003}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: payment-service, namespace: shop}
+spec:
+  selector: {app: payment-service, color: blue}
+  ports: [{port: 3004, targetPort: 3004}]
