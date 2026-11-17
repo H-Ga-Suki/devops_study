@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: gateway, namespace: shop}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: gateway, color: blue}}
+  template:
+    metadata: {labels: {app: gateway, color: blue}}
+    spec:
+      containers:
+        - name: gateway
+          image: phngoccong/gateway:latest
+          ports: [{containerPort: 3000}]
+          envFrom:
+            - configMapRef: {name: app-config}
+            - secretRef: {name: app-secrets}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: product-service, namespace: shop}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: product-service, color: blue}}
+  template:
+    metadata: {labels: {app: product-service, color: blue}}
+    spec:
+      containers:
+        - name: product-service
+          image: phngoccong/product:latest
+          ports: [{containerPort: 3001}]
+          envFrom:
+            - configMapRef: {name: app-config}
+            - secretRef: {name: app-secrets}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: cart-service, namespace: shop}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: cart-service, color: blue}}
+  template:
+    metadata: {labels: {app: cart-service, color: blue}}
+    spec:
+      containers:
+        - name: cart-service
+          image: phngoccong/cart:latest
+          ports: [{containerPort: 3002}]
+          envFrom:
+            - configMapRef: {name: app-config}
+            - secretRef: {name: app-secrets}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: order-service, namespace: shop}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: order-service, color: blue}}
+  template:
+    metadata: {labels: {app: order-service, color: blue}}
+    spec:
+      containers:
+        - name: order-service
+          image: phngoccong/order:latest
+          ports: [{containerPort: 3003}]
+          envFrom:
+            - configMapRef: {name: app-config}
+            - secretRef: {name: app-secrets}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: payment-service, namespace: shop}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: payment-service, color: blue}}
+  template:
+    metadata: {labels: {app: payment-service, color: blue}}
+    spec:
+      containers:
+        - name: payment-service
+          image: phngoccong/payment:latest
+          ports: [{containerPort: 3004}]
+          envFrom:
+            - configMapRef: {name: app-config}
+            - secretRef: {name: app-secrets}
