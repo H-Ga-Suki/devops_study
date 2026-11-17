@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${NAME}-${COLOR}
+  namespace: shop
+  labels: {app: ${NAME}, color: ${COLOR}}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: ${NAME}, color: ${COLOR}}
+  template:
+    metadata:
+      labels: {app: ${NAME}, color: ${COLOR}}
+    spec:
+      containers:
+        - name: ${NAME}
+          image: ${IMAGE}
+          ports: [{containerPort: ${PORT}}]
+          env:
+            - name: PORT
+              valueFrom: {configMapKeyRef: {name: app-config, key: PORT_${KEY}}}
+            - name: DB_URI
+              valueFrom: {secretKeyRef: {name: app-secrets, key: DB_URI_${KEY}, optional: true}}
+          envFrom:
+            - configMapRef: {name: app-config}
+          resources:
+            requests: {memory: 96Mi, cpu: 50m}
+            limits: {memory: 192Mi}
+          readinessProbe:
+            tcpSocket: {port: ${PORT}}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket: {port: ${PORT}}
+            initialDelaySeconds: 20
+            periodSeconds: 10
