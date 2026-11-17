@@ -36,32 +36,24 @@ pipeline {
                 sh 'trivy fs --exit-code 0 --no-progress .'
             }
         }
-        stage('5. Deploy to Staging (Azure VM)') {
+        stage('5. Deploy to K3s (Azure VM)') {
             when {
                 branch 'main' // CHỈ CHẠY KHI NHÁNH LÀ MAIN
             }
             steps {
-                echo 'Deploying application to Azure VM...'
+                echo 'Deploying Kubernetes infrastructure to Azure VM...'
                 sh """
-mkdir -p ansible
-cat << 'EOF' > ansible/deploy.yml
-- name: Deploy Microservices
-  hosts: staging
-  become: yes
-  tasks:
-    - name: Copy project code
-      synchronize:
-        src: "{{ lookup('env', 'WORKSPACE') }}/"
-        dest: /home/adminuser/devops_study/
-        rsync_opts:
-          - "--exclude=.git"
-
-    - name: Run Docker Compose
-      command: docker-compose up -d --build
-      args:
-        chdir: /home/adminuser/devops_study/
-EOF
-ansible-playbook -i ansible/hosts ansible/deploy.yml
+                # Chay kich ban Ansible cai k3s voi mat khau Vault
+                ansible-playbook -i ansible/hosts ansible/install-k3s.yml --vault-password-file ~/.vault_pass.txt
+                
+                # Tao thu muc chua file cau hinh k8s tren may ao
+                ssh -o StrictHostKeyChecking=no adminuser@172.198.139.227 'mkdir -p /home/adminuser/k8s_manifests'
+                
+                # Day toan bo manifest cua Phase 4 sang Azure
+                rsync -avz -e "ssh -o StrictHostKeyChecking=no" ./k8s/ adminuser@172.198.139.227:/home/adminuser/k8s_manifests/
+                
+                # Kich hoat toan bo Database va Microservices bang kubectl
+                ssh -o StrictHostKeyChecking=no adminuser@172.198.139.227 'sudo k3s kubectl apply -f /home/adminuser/k8s_manifests/cert-manager/ && sleep 10 && sudo k3s kubectl apply -f /home/adminuser/k8s_manifests/'
                 """
             }
         }
