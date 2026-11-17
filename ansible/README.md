@@ -87,3 +87,11 @@ ansible-galaxy collection install -r requirements.yml
 - Docker và `ufw`: cổng container publish bằng Docker (ví dụ 5432, 27017, 6379) có thể đi vòng qua luật `ufw`. Nên chặn các cổng này bằng NSG của Azure, hoặc không publish cổng database ra ngoài.
 - K3s: script cài không ghim phiên bản theo mặc định. Muốn ghim, đặt biến `k3s_version` theo định dạng `vX.Y.Z+k3s1`, ví dụ `-e k3s_version=vX.Y.Z+k3s1`.
 - K3s: file kubeconfig đang để quyền 644 (mọi user trên máy đều đọc được). Chấp nhận cho môi trường học tập, nên siết lại khi dùng thật.
+
+## Jenkins agent
+
+- Địa chỉ Jenkins của nhóm đặt sẵn trong `inventory/group_vars/store/vars.yml` (biến `jenkins_agent_url`).
+- Mã secret của node nằm trong `inventory/group_vars/store/vault.yml` (đã mã hóa). Bản trên Git chỉ chứa giá trị giữ chỗ `CHANGE_ME`.
+- Lấy mã thật ở Jenkins: Manage Jenkins, Nodes, chọn node (tên phải khớp `jenkins_agent_name`), copy chuỗi sau `-secret`.
+- Đặt mã trên máy chạy Ansible: `ansible-vault edit inventory/group_vars/store/vault.yml`. Không commit mã thật lên Git.
+- Chạy: `ansible-playbook provision.yml --ask-vault-pass`.
