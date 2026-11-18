@@ -2,8 +2,9 @@ apiVersion: v1
 kind: Service
 metadata: {name: gateway, namespace: shop}
 spec:
+  type: NodePort
   selector: {app: gateway, color: blue}
-  ports: [{port: 3000, targetPort: 3000}]
+  ports: [{port: 3000, targetPort: 3000, nodePort: 30000}]
 ---
 apiVersion: v1
 kind: Service
@@ -32,4 +33,3 @@ metadata: {name: payment-service, namespace: shop}
 spec:
   selector: {app: payment-service, color: blue}
   ports: [{port: 3004, targetPort: 3004}]
----
