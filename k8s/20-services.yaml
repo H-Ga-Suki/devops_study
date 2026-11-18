@@ -32,3 +32,4 @@ metadata: {name: payment-service, namespace: shop}
 spec:
   selector: {app: payment-service, color: blue}
   ports: [{port: 3004, targetPort: 3004}]
+---
