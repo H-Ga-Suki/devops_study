@@ -1,0 +1,32 @@
+---
+- name: Cap nhat danh sach goi
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Cai goi co ban
+  ansible.builtin.apt:
+    name: [git, curl, vim, htop, ufw, unzip]
+    state: present
+
+- name: Dat timezone
+  community.general.timezone:
+    name: "{{ timezone | default('Asia/Ho_Chi_Minh') }}"
+
+- name: Cho phep SSH truoc khi bat firewall
+  community.general.ufw:
+    rule: allow
+    port: "22"
+    proto: tcp
+
+- name: Mo cac cong cua cua hang
+  community.general.ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop: ["3000", "8080"]
+
+- name: Bat firewall
+  community.general.ufw:
+    state: enabled
+    policy: deny
