@@ -2,8 +2,8 @@
 FROM node:18-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
-# Dùng npm ci thay cho npm install để cài đúng version trong package-lock.json
-RUN npm ci 
+# Dùng npm install thay cho npm install để cài đúng version trong package-lock.json
+RUN npm install 
 COPY . .
 
 # Stage 2: Production - Tạo image siêu nhẹ và bảo mật

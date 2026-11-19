@@ -5,7 +5,7 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
-// Cho phép Frontend (cổng 8081) gọi trực tiếp sang Gateway (cổng 3000)
+// Cho phép Frontend gọi sang Gateway
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
@@ -15,13 +15,13 @@ app.use((req, res, next) => {
 });
 
 const SERVICES = {
-  catalog:   { name: 'product-service', url: 'http://product-service:3001' },
-  products:  { name: 'product-service', url: 'http://product-service:3001' },
-  inventory: { name: 'product-service', url: 'http://product-service:3001' },
-  cart:      { name: 'cart-service',    url: 'http://cart-service:3002' },
-  orders:    { name: 'order-service',   url: 'http://order-service:3003' },
-  payments:  { name: 'payment-service', url: 'http://payment-service:3004' },
-  auth:      { name: 'auth-service',    url: 'http://auth-service:3006' }
+  catalog:   { name: 'product-service', url: process.env.PRODUCT_SERVICE_URL || 'http://product-service:3001' },
+  products:  { name: 'product-service', url: process.env.PRODUCT_SERVICE_URL || 'http://product-service:3001' },
+  inventory: { name: 'product-service', url: process.env.PRODUCT_SERVICE_URL || 'http://product-service:3001' },
+  cart:      { name: 'cart-service',    url: process.env.CART_SERVICE_URL    || 'http://cart-service:3002' },
+  orders:    { name: 'order-service',   url: process.env.ORDER_SERVICE_URL   || 'http://order-service:3003' },
+  payments:  { name: 'payment-service', url: process.env.PAYMENT_SERVICE_URL || 'http://payment-service:3004' },
+  auth:      { name: 'auth-service',    url: process.env.AUTH_SERVICE_URL    || 'http://auth-service:3006' }
 };
 
 app.get('/', (req, res) => {
