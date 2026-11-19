@@ -7,3 +7,6 @@ node_modules/
 envs/staging/.terraform/
 *.tfstate
 *.tfstate.*
+
+am-clean.yaml
+alertmanager-telegram.yaml
