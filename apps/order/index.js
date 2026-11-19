@@ -1,9 +1,13 @@
 const express = require('express');
 const { Pool } = require('pg');
+const amqp = require('amqplib');
 const app = express();
 
 const PORT = process.env.PORT || 3003;
 const PG_URI = process.env.DB_URI || 'postgresql://postgres:password@order-db:5432/order_db';
+const RABBIT_URI = process.env.RABBITMQ_URI || 'amqp://guest:guest@rabbitmq:5672';
+const QUEUE_NAME = 'order_events';
+
 const DB_INFO = {
   engine: 'PostgreSQL 15 (order_db:5432)',
   volume: 'order_data (/var/lib/postgresql/data)',
@@ -14,6 +18,19 @@ const DB_INFO = {
 
 app.use(express.json());
 const pool = new Pool({ connectionString: PG_URI });
+let rabbitChannel = null;
+
+async function initRabbitMQ() {
+  try {
+    const conn = await amqp.connect(RABBIT_URI);
+    rabbitChannel = await conn.createChannel();
+    await rabbitChannel.assertQueue(QUEUE_NAME, { durable: true });
+    console.log(`Connected to RabbitMQ & queue "${QUEUE_NAME}" ready`);
+  } catch (err) {
+    console.error('RabbitMQ connect failed (retrying in 5s):', err.message);
+    setTimeout(initRabbitMQ, 5000);
+  }
+}
 
 async function initDB() {
   await pool.query(`
@@ -51,16 +68,9 @@ async function initDB() {
 
 function mapRow(r) {
   return {
-    id: r.id,
-    userId: r.user_id,
-    customer: r.customer,
-    date: r.date,
-    total: Number(r.total),
-    paymentMethod: r.payment_method,
-    status: r.status,
-    items: r.items,
-    steps: r.steps,
-    sagaSteps: r.saga_steps
+    id: r.id, userId: r.user_id, customer: r.customer, date: r.date,
+    total: Number(r.total), paymentMethod: r.payment_method, status: r.status,
+    items: r.items, steps: r.steps, sagaSteps: r.saga_steps
   };
 }
 
@@ -137,6 +147,19 @@ const handleSagaCheckout = async (req, res) => {
       [orderId, userId, customer, dateStr, total, paymentMethod, 'SAGA_CONFIRMED', JSON.stringify(items), JSON.stringify(steps), JSON.stringify(sagaSteps)]
     );
 
+    if (rabbitChannel) {
+      const eventPayload = {
+        event: 'ORDER_COMPLETED',
+        orderId,
+        customer,
+        total,
+        transactionId: paymentData.transactionId,
+        timestamp: new Date().toISOString()
+      };
+      rabbitChannel.sendToQueue(QUEUE_NAME, Buffer.from(JSON.stringify(eventPayload)), { persistent: true });
+      console.log(`Published event to RabbitMQ [${QUEUE_NAME}]: ${orderId}`);
+    }
+
     res.status(201).json({
       service: 'order-service',
       database: DB_INFO,
@@ -161,5 +184,8 @@ app.use(async (req, res) => {
 });
 
 initDB()
-  .then(() => app.listen(PORT, '0.0.0.0', () => console.log(`Order Service is running on port ${PORT}`)))
+  .then(() => {
+    initRabbitMQ();
+    app.listen(PORT, '0.0.0.0', () => console.log(`Order Service is running on port ${PORT}`));
+  })
   .catch((err) => { console.error('Order DB init failed:', err); process.exit(1); });

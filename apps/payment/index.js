@@ -1,9 +1,13 @@
 const express = require('express');
 const { Pool } = require('pg');
+const amqp = require('amqplib');
 const app = express();
 
 const PORT = process.env.PORT || 3004;
 const PG_URI = process.env.DB_URI || 'postgresql://postgres:password@payment-db:5432/payment_db';
+const RABBIT_URI = process.env.RABBITMQ_URI || 'amqp://guest:guest@rabbitmq:5672';
+const QUEUE_NAME = 'order_events';
+
 const DB_INFO = {
   engine: 'PostgreSQL 15 (payment_db:5432 -> host 5433)',
   volume: 'payment_data (/var/lib/postgresql/data)',
@@ -13,6 +17,26 @@ const DB_INFO = {
 
 app.use(express.json());
 const pool = new Pool({ connectionString: PG_URI });
+
+async function initRabbitMQ() {
+  try {
+    const conn = await amqp.connect(RABBIT_URI);
+    const channel = await conn.createChannel();
+    await channel.assertQueue(QUEUE_NAME, { durable: true });
+    console.log(`Connected to RabbitMQ & listening on queue "${QUEUE_NAME}"`);
+
+    channel.consume(QUEUE_NAME, (msg) => {
+      if (msg !== null) {
+        const event = JSON.parse(msg.content.toString());
+        console.log(`[RabbitMQ Event Received] ${event.event} | Order: ${event.orderId} | Total: ${event.total}`);
+        channel.ack(msg);
+      }
+    });
+  } catch (err) {
+    console.error('RabbitMQ connect failed (retrying in 5s):', err.message);
+    setTimeout(initRabbitMQ, 5000);
+  }
+}
 
 async function initDB() {
   await pool.query(`
@@ -38,12 +62,9 @@ async function initDB() {
 
 function mapRow(r) {
   return {
-    transactionId: r.transaction_id,
-    orderId: r.order_id,
-    amount: Number(r.amount),
-    method: r.method,
-    status: r.status,
-    timestamp: r.timestamp
+    transactionId: r.transaction_id, orderId: r.order_id,
+    amount: Number(r.amount), method: r.method,
+    status: r.status, timestamp: r.timestamp
   };
 }
 
@@ -76,13 +97,8 @@ app.post('/charge', async (req, res) => {
   );
 
   res.status(200).json({
-    service: 'payment-service',
-    database: DB_INFO,
-    transactionId,
-    orderId,
-    amount,
-    method,
-    status,
+    service: 'payment-service', database: DB_INFO,
+    transactionId, orderId, amount, method, status,
     timestamp: new Date().toISOString()
   });
 });
@@ -92,5 +108,8 @@ app.use(async (req, res) => {
 });
 
 initDB()
-  .then(() => app.listen(PORT, '0.0.0.0', () => console.log(`Payment Service is running on port ${PORT}`)))
+  .then(() => {
+    initRabbitMQ();
+    app.listen(PORT, '0.0.0.0', () => console.log(`Payment Service is running on port ${PORT}`));
+  })
   .catch((err) => { console.error('Payment DB init failed:', err); process.exit(1); });
