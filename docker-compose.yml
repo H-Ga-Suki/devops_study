@@ -91,6 +91,26 @@ services:
       retries: 10
       start_period: 120s
 
+  auth-db:
+    image: postgres:15-alpine
+    container_name: auth_db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: auth_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - auth_data:/var/lib/postgresql/data
+    networks:
+      - devops-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d auth_db"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+
  # --- MICROSERVICES ---
   gateway:
     build:
@@ -195,11 +215,71 @@ services:
     networks:
       - devops-net
 
+  auth-service:
+    build:
+      context: ./apps/auth
+      dockerfile: Dockerfile
+    container_name: auth_service
+    ports:
+      - "3006:3006"
+    environment:
+      PORT: 3006
+      DB_URI: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@auth-db:5432/auth_db
+      JWT_SECRET: ${JWT_SECRET:-super_secret_devops_key_123}
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    networks:
+      - devops-net
+
+  cloudmart-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cloudmart_frontend
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    depends_on:
+      - gateway
+    networks:
+      - devops-net
+  
+  db-viewer-sql:
+    image: adminer:latest
+    container_name: devops_adminer
+    restart: unless-stopped
+    ports:
+      - "8082:8080"
+    depends_on:
+      - order-db
+      - payment-db
+    networks:
+      - devops-net
+
+  db-viewer-mongo:
+    image: mongo-express:latest
+    container_name: devops_mongo_express
+    restart: unless-stopped
+    ports:
+      - "8083:8081"
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      ME_CONFIG_MONGODB_URL: mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@product-db:27017/
+      ME_CONFIG_BASICAUTH: "false"
+    depends_on:
+      product-db:
+        condition: service_healthy
+    networks:
+      - devops-net
+
 volumes:
   product_data:
   order_data:
   cart_data:
   payment_data:
+  auth_data:
 
 networks:
   devops-net:

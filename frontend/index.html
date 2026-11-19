@@ -1,0 +1,1837 @@
+<!DOCTYPE html>
+<html lang="vi" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CloudMart — Cửa Hàng Trực Tuyến Microservices & K3s DevOps Console</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #f8fafc;
+      color: #0f172a;
+    }
+    .font-mono-code { font-family: 'JetBrains Mono', monospace; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    @keyframes pulse-ring {
+      0% { transform: scale(0.85); opacity: 0.8; }
+      70% { transform: scale(1.6); opacity: 0; }
+      100% { transform: scale(1.6); opacity: 0; }
+    }
+    .status-dot-pulse::before {
+      content: '';
+      position: absolute;
+      inset: -3px;
+      border-radius: 9999px;
+      background-color: inherit;
+      animation: pulse-ring 2s infinite;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-indigo-600 selection:text-white">
+
+  <!-- TOP MICROSERVICES STATUS RIBBON -->
+  <div class="bg-slate-900 text-slate-300 text-xs border-b border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-2 flex flex-wrap items-center justify-between gap-2">
+      <div class="flex items-center gap-3 flex-wrap">
+        <span class="inline-flex items-center gap-1.5 font-mono-code text-emerald-400 bg-emerald-950/70 border border-emerald-800/60 px-2 py-0.5 rounded-full">
+          <span class="relative flex h-2 w-2 rounded-full bg-emerald-400 status-dot-pulse"></span>
+          Docker / K3s Cluster: Online
+        </span>
+        <span class="hidden md:inline text-slate-400">|</span>
+        <span class="hidden md:inline font-mono-code text-slate-400">Gateway: <strong class="text-slate-200">:3000</strong></span>
+        <span class="hidden sm:inline text-slate-400">|</span>
+        <span id="ribbonHealthSummary" class="font-mono-code text-slate-300">Services: 6/6 Healthy</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <button type="button" onclick="toggleTraceDrawer()" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 font-mono-code transition">
+          <i data-lucide="activity" class="w-3.5 h-3.5"></i>
+          <span>API Trace Log</span>
+          <span id="traceCountBadge" class="bg-indigo-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">0</span>
+        </button>
+        <button type="button" onclick="switchMainView('devops')" class="inline-flex items-center gap-1 text-slate-300 hover:text-white transition font-medium">
+          <i data-lucide="server" class="w-3.5 h-3.5 text-sky-400"></i>
+          <span>DevOps Console</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN HEADER / NAVBAR -->
+  <header class="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <button type="button" onclick="switchMainView('store')" class="flex items-center gap-2.5 text-left group">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-sky-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20 group-hover:scale-105 transition">
+            <i data-lucide="boxes" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="font-extrabold text-lg tracking-tight text-slate-900">CloudMart</span>
+              <span class="text-[10px] font-mono-code uppercase px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 font-semibold">Microservices</span>
+            </div>
+            <p class="text-[11px] text-slate-500 hidden sm:block">DevOps Store Stack • Ansible + Docker + K3s</p>
+          </div>
+        </button>
+      </div>
+
+      <nav class="hidden md:flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/80">
+        <button type="button" id="navBtn-store" onclick="switchMainView('store')" class="nav-tab-btn px-3.5 py-1.5 rounded-lg text-sm font-semibold transition flex items-center gap-1.5 bg-white text-indigo-600 shadow-sm">
+          <i data-lucide="shopping-bag" class="w-4 h-4"></i>
+          <span>Cửa hàng</span>
+        </button>
+        <button type="button" id="navBtn-orders" onclick="switchMainView('orders')" class="nav-tab-btn px-3.5 py-1.5 rounded-lg text-sm font-semibold transition flex items-center gap-1.5 text-slate-600 hover:text-slate-900">
+          <i data-lucide="package-check" class="w-4 h-4"></i>
+          <span>Đơn hàng Saga</span>
+          <span id="ordersNavBadge" class="text-xs px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-700 font-bold">0</span>
+        </button>
+        <button type="button" id="navBtn-devops" onclick="switchMainView('devops')" class="nav-tab-btn px-3.5 py-1.5 rounded-lg text-sm font-semibold transition flex items-center gap-1.5 text-slate-600 hover:text-slate-900">
+          <i data-lucide="cpu" class="w-4 h-4"></i>
+          <span>Giám sát K3s & Services</span>
+        </button>
+        <button type="button" id="navBtn-config" onclick="switchMainView('config')" class="nav-tab-btn px-3.5 py-1.5 rounded-lg text-sm font-semibold transition flex items-center gap-1.5 text-slate-600 hover:text-slate-900">
+          <i data-lucide="sliders" class="w-4 h-4"></i>
+          <span>API & Triển khai</span>
+        </button>
+      </nav>
+
+      <div class="flex items-center gap-2">
+        <button type="button" onclick="filterFavoritesOnly()" id="favFilterBtn" class="relative p-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-rose-600 transition" title="Sản phẩm yêu thích">
+          <i data-lucide="heart" class="w-5 h-5"></i>
+          <span id="wishlistBadge" class="absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">0</span>
+        </button>
+
+        <button type="button" onclick="openAuthModal()" class="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-xs font-medium text-slate-700 transition">
+          <div class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs" id="userAvatarInitials">?</div>
+          <div class="text-left">
+            <div id="userNameDisplay" class="font-semibold text-slate-800 leading-tight">Đăng nhập</div>
+            <div id="userRoleDisplay" class="text-[10px] text-rose-500 font-mono-code">Chưa xác thực</div>
+          </div>
+        </button>
+
+        <button type="button" onclick="toggleCartDrawer()" class="relative inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm shadow-sm shadow-indigo-500/20 transition">
+          <i data-lucide="shopping-cart" class="w-4 h-4"></i>
+          <span class="hidden sm:inline">Giỏ hàng</span>
+          <span id="cartCountBadge" class="bg-white text-indigo-700 text-xs font-extrabold px-2 py-0.5 rounded-full">0</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile Navigation Bar -->
+    <div class="md:hidden flex items-center justify-around border-t border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-semibold">
+      <button type="button" id="mobNav-store" onclick="switchMainView('store')" class="flex-1 py-1.5 rounded-lg text-center text-indigo-600 bg-white shadow-sm">Cửa hàng</button>
+      <button type="button" id="mobNav-orders" onclick="switchMainView('orders')" class="flex-1 py-1.5 rounded-lg text-center text-slate-600">Đơn hàng</button>
+      <button type="button" id="mobNav-devops" onclick="switchMainView('devops')" class="flex-1 py-1.5 rounded-lg text-center text-slate-600">K3s Cluster</button>
+      <button type="button" id="mobNav-config" onclick="switchMainView('config')" class="flex-1 py-1.5 rounded-lg text-center text-slate-600">Cấu hình API</button>
+    </div>
+  </header>
+
+  <!-- MAIN WORKSPACE CONTAINER -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-8">
+
+    <!-- VIEW 1: STOREFRONT -->
+    <section id="view-store" class="space-y-6">
+      <div class="relative rounded-2xl overflow-hidden bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-6 sm:p-8 shadow-lg border border-indigo-500/20">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+          <div class="lg:col-span-7 space-y-4">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-200 text-xs font-mono-code">
+              <i data-lucide="layers" class="w-3.5 h-3.5 text-indigo-400"></i>
+              <span>6 Microservices Live • Auth JWT + Redis Cart Per-User + Saga Checkout</span>
+            </div>
+            <h1 class="text-2xl sm:text-4xl font-extrabold tracking-tight leading-tight">
+              Thiết Bị Phần Cứng & Hạ Tầng <span class="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-indigo-300">Cloud-Native</span>
+            </h1>
+            <p class="text-slate-300 text-sm sm:text-base max-w-2xl leading-relaxed">
+              Mọi thao tác đăng nhập (<code class="text-sky-300 font-mono-code">/api/v1/auth</code>), tải sản phẩm (<code class="text-sky-300 font-mono-code">/api/v1/catalog</code>), giỏ hàng cá nhân (<code class="text-sky-300 font-mono-code">/api/v1/cart</code>) và đặt hàng Saga (<code class="text-sky-300 font-mono-code">/api/v1/orders/checkout</code>) đều gọi trực tiếp qua <strong>API Gateway :3000</strong>.
+            </p>
+            <div class="flex flex-wrap items-center gap-3 pt-1">
+              <button type="button" onclick="scrollToCatalog()" class="px-4 py-2.5 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white font-semibold text-sm shadow-md transition inline-flex items-center gap-2">
+                <i data-lucide="sparkles" class="w-4 h-4"></i>
+                <span>Khám phá sản phẩm</span>
+              </button>
+              <button type="button" onclick="openAuthModal()" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm shadow-md transition inline-flex items-center gap-2">
+                <i data-lucide="key-round" class="w-4 h-4"></i>
+                <span>Đăng nhập / Đăng ký JWT</span>
+              </button>
+              <button type="button" onclick="toggleTraceDrawer()" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold text-sm transition inline-flex items-center gap-2">
+                <i data-lucide="terminal" class="w-4 h-4 text-emerald-400"></i>
+                <span>Live API Trace</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="lg:col-span-5 bg-slate-900/90 border border-slate-700/80 rounded-xl p-4 space-y-3 backdrop-blur">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+              <div class="flex items-center gap-2">
+                <i data-lucide="network" class="w-4 h-4 text-sky-400"></i>
+                <span class="text-xs font-mono-code font-semibold uppercase tracking-wider text-slate-300">Live Microservices Mesh</span>
+              </div>
+              <button type="button" onclick="triggerGlobalHealthCheck()" class="text-[11px] font-mono-code text-sky-400 hover:text-sky-300 flex items-center gap-1">
+                <i data-lucide="refresh-cw" class="w-3 h-3"></i>
+                <span>Ping All</span>
+              </button>
+            </div>
+            <div id="heroServiceGrid" class="grid grid-cols-2 gap-2 text-xs font-mono-code"></div>
+            <div class="pt-1 flex items-center justify-between text-[11px] text-slate-400 font-mono-code">
+              <span>Gateway: <strong class="text-slate-200">/api/v1/*</strong></span>
+              <span id="lastApiCallIndicator" class="text-emerald-400 truncate max-w-[200px]">Ready</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Toolbar -->
+      <div id="catalogToolbar" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 space-y-4">
+        <div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+          <div class="relative flex-1">
+            <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+            <input id="searchInput" type="text" oninput="handleSearchAndFilter()" placeholder="Tìm sản phẩm theo tên, mã SKU hoặc từ khóa..." class="w-full pl-10 pr-9 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm transition" />
+            <button type="button" id="clearSearchBtn" onclick="clearCatalogFilters()" class="hidden absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+              <i data-lucide="x-circle" class="w-4 h-4"></i>
+            </button>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <select id="stockFilterSelect" onchange="handleSearchAndFilter()" class="px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="all">Tất cả kho (Inventory)</option>
+              <option value="instock">Còn hàng (&gt; 0)</option>
+              <option value="lowstock">Sắp hết (&le; 10)</option>
+            </select>
+
+            <select id="sortSelect" onchange="handleSearchAndFilter()" class="px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="featured">Sắp xếp: Nổi bật</option>
+              <option value="price-asc">Giá: Thấp đến Cao</option>
+              <option value="price-desc">Giá: Cao đến Thấp</option>
+              <option value="rating-desc">Đánh giá cao nhất</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between gap-2 flex-wrap pt-1 border-t border-slate-100">
+          <div class="flex items-center gap-1.5 flex-wrap" id="categoryPillsContainer">
+            <button type="button" onclick="selectCategory('all')" data-cat="all" class="cat-pill px-3 py-1.5 rounded-lg text-xs font-semibold transition bg-indigo-600 text-white">Tất cả (8)</button>
+            <button type="button" onclick="selectCategory('server')" data-cat="server" class="cat-pill px-3 py-1.5 rounded-lg text-xs font-semibold transition bg-slate-100 text-slate-700 hover:bg-slate-200">Mini Server & Homelab</button>
+            <button type="button" onclick="selectCategory('peripherals')" data-cat="peripherals" class="cat-pill px-3 py-1.5 rounded-lg text-xs font-semibold transition bg-slate-100 text-slate-700 hover:bg-slate-200">Bàn phím & Màn hình</button>
+            <button type="button" onclick="selectCategory('audio')" data-cat="audio" class="cat-pill px-3 py-1.5 rounded-lg text-xs font-semibold transition bg-slate-100 text-slate-700 hover:bg-slate-200">Âm thanh & Hội nghị</button>
+            <button type="button" onclick="selectCategory('security')" data-cat="security" class="cat-pill px-3 py-1.5 rounded-lg text-xs font-semibold transition bg-slate-100 text-slate-700 hover:bg-slate-200">Lưu trữ & Bảo mật</button>
+          </div>
+
+          <div class="text-xs font-mono-code text-slate-500 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-500" id="catalogStatusDot"></span>
+            <span id="catalogServiceReadout">product-service: 200 OK</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Outage Banner -->
+      <div id="catalogOutageBanner" class="hidden rounded-2xl bg-rose-50 border border-rose-200 p-6 text-center space-y-3">
+        <div class="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+          <i data-lucide="shield-alert" class="w-6 h-6"></i>
+        </div>
+        <h3 class="text-lg font-bold text-rose-900">503 Service Unavailable — catalog-service đang ngừng hoạt động</h3>
+        <p class="text-sm text-rose-700 max-w-xl mx-auto">Circuit Breaker đã cô lập lỗi cho product-service.</p>
+        <div class="pt-1">
+          <button type="button" onclick="toggleServiceHealth('catalog-service')" class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold transition inline-flex items-center gap-2">
+            <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+            <span>Khôi phục catalog-service Pod ngay</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Product Grid -->
+      <div id="productGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5"></div>
+    </section>
+
+    <!-- VIEW 2: ORDERS & SAGA -->
+    <section id="view-orders" class="hidden space-y-6">
+      <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div class="inline-flex items-center gap-1.5 text-xs font-mono-code text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-md mb-1">
+            <i data-lucide="git-merge" class="w-3.5 h-3.5"></i>
+            <span>order-service :3003 • Distributed Saga Orchestrator</span>
+          </div>
+          <h2 class="text-xl font-bold text-slate-900">Quản Lý Đơn Hàng & Trạng Thái Saga</h2>
+          <p class="text-sm text-slate-500">Đồng bộ trực tiếp từ <code class="font-mono-code">GET /api/v1/orders</code> và <code class="font-mono-code">POST /api/v1/orders/checkout</code>.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="fetchRealOrders(true)" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition inline-flex items-center gap-1.5">
+            <i data-lucide="refresh-cw" class="w-4 h-4 text-indigo-600"></i>
+            <span>Tải lại từ order-service</span>
+          </button>
+          <button type="button" onclick="switchMainView('store')" class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition inline-flex items-center gap-1.5">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            <span>Mua thêm sản phẩm</span>
+          </button>
+        </div>
+      </div>
+      <div id="ordersListContainer" class="space-y-4"></div>
+    </section>
+
+    <!-- VIEW 3: DEVOPS CONSOLE -->
+    <section id="view-devops" class="hidden space-y-6">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+          <div class="flex items-center justify-between text-xs font-semibold text-slate-500 uppercase">
+            <span>Trạng thái Cluster</span>
+            <i data-lucide="server" class="w-4 h-4 text-indigo-600"></i>
+          </div>
+          <div class="mt-2 flex items-baseline justify-between">
+            <span id="kpiHealthyServices" class="text-2xl font-extrabold text-slate-900">6 / 6</span>
+            <span id="kpiClusterStatusBadge" class="text-xs font-mono-code px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-semibold">HEALTHY</span>
+          </div>
+          <p class="mt-1 text-xs text-slate-500 font-mono-code">Docker Compose / K3s</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+          <div class="flex items-center justify-between text-xs font-semibold text-slate-500 uppercase">
+            <span>Tổng Pods đang chạy</span>
+            <i data-lucide="boxes" class="w-4 h-4 text-sky-600"></i>
+          </div>
+          <div class="mt-2 flex items-baseline justify-between">
+            <span id="kpiTotalPods" class="text-2xl font-extrabold text-slate-900">12 Pods</span>
+            <span class="text-xs font-mono-code text-sky-600">Namespace: store-prod</span>
+          </div>
+          <p class="mt-1 text-xs text-slate-500 font-mono-code">Auto-scaling: HPA v2</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+          <div class="flex items-center justify-between text-xs font-semibold text-slate-500 uppercase">
+            <span>Độ trễ Gateway P95</span>
+            <i data-lucide="gauge" class="w-4 h-4 text-amber-500"></i>
+          </div>
+          <div class="mt-2 flex items-baseline justify-between">
+            <span id="kpiAvgLatency" class="text-2xl font-extrabold text-slate-900">20 ms</span>
+            <span class="text-xs font-mono-code text-emerald-600">SLA &lt; 150ms</span>
+          </div>
+          <p class="mt-1 text-xs text-slate-500 font-mono-code">Express Gateway :3000</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+          <div class="flex items-center justify-between text-xs font-semibold text-slate-500 uppercase">
+            <span>Tổng API Requests</span>
+            <i data-lucide="activity" class="w-4 h-4 text-emerald-600"></i>
+          </div>
+          <div class="mt-2 flex items-baseline justify-between">
+            <span id="kpiTotalRequests" class="text-2xl font-extrabold text-slate-900">0</span>
+            <span id="kpiErrorRate" class="text-xs font-mono-code text-slate-600">Lỗi: 0%</span>
+          </div>
+          <p class="mt-1 text-xs text-slate-500 font-mono-code">Ghi nhận trực tiếp từ UI</p>
+        </div>
+      </div>
+
+      <div class="bg-slate-900 text-white rounded-2xl p-5 border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div class="space-y-1">
+          <span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-400/30 font-mono-code text-xs font-semibold">Chaos Engineering & Live Health Check</span>
+          <h3 class="text-base font-bold">Kiểm thử chịu lỗi & kiểm tra Health thật của 6 Microservices</h3>
+          <p class="text-xs text-slate-300">Bấm kiểm tra Health thật qua <code class="text-sky-300 font-mono-code">GET /api/v1/health-all</code> hoặc bật tắt giả lập 503 từng service.</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <button type="button" onclick="triggerGlobalHealthCheck()" class="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold transition inline-flex items-center gap-1.5">
+            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+            <span>Kiểm tra Health thật</span>
+          </button>
+          <button type="button" onclick="simulateTrafficBurst()" class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition inline-flex items-center gap-1.5">
+            <i data-lucide="flame" class="w-4 h-4"></i>
+            <span>Giả lập Load Test (50 reqs)</span>
+          </button>
+          <button type="button" onclick="restoreAllServices()" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition inline-flex items-center gap-1.5">
+            <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+            <span>Khôi phục toàn bộ</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="microservicesCardsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-3">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900">Độ Trễ Phản Hồi Theo Microservice (P95 Latency ms)</h3>
+              <p class="text-xs text-slate-500">Cập nhật tức thời theo trạng thái Pod</p>
+            </div>
+            <span class="text-xs font-mono-code text-slate-400">Prometheus Exporter</span>
+          </div>
+          <div class="relative h-72"><canvas id="latencyChartCanvas"></canvas></div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-3">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900">Lưu Lượng API Gateway (Requests / Time)</h3>
+              <p class="text-xs text-slate-500">Thống kê HTTP 2xx vs HTTP 4xx/5xx</p>
+            </div>
+            <span class="text-xs font-mono-code text-slate-400">Grafana / Loki Feed</span>
+          </div>
+          <div class="relative h-72"><canvas id="trafficChartCanvas"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 4: API CONFIG & MANIFESTS -->
+    <section id="view-config" class="hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div class="lg:col-span-7 bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-5">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+            <div>
+              <h2 class="text-lg font-bold text-slate-900">Cấu Hình Kết Nối API Gateway & Endpoints</h2>
+              <p class="text-xs text-slate-500">Mặc định kết nối trực tiếp Gateway cổng 3000.</p>
+            </div>
+            <span id="apiModeBadge" class="px-2.5 py-1 rounded-full text-xs font-mono-code font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Mode: Live Gateway</span>
+          </div>
+
+          <div class="space-y-3">
+            <div>
+              <label for="gatewayBaseUrlInput" class="block text-xs font-semibold text-slate-700 mb-1">API Gateway Base URL</label>
+              <div class="flex gap-2">
+                <input id="gatewayBaseUrlInput" type="text" value="http://localhost:3000/api/v1" class="flex-1 px-3.5 py-2 rounded-xl border border-slate-200 font-mono-code text-xs bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                <button type="button" onclick="saveGatewayUrl()" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition">Lưu URL</button>
+              </div>
+            </div>
+
+            <div class="pt-2">
+              <div class="text-xs font-semibold text-slate-700 mb-2">Bảng định tuyến Microservices:</div>
+              <div class="overflow-x-auto border border-slate-200 rounded-xl">
+                <table class="w-full text-left text-xs">
+                  <thead class="bg-slate-50 text-slate-600 border-b border-slate-200 font-semibold">
+                    <tr><th class="py-2.5 px-3">Microservice</th><th class="py-2.5 px-3">Route Path</th><th class="py-2.5 px-3">Port</th><th class="py-2.5 px-3">Database</th></tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-200 font-mono-code text-[11px]">
+                    <tr><td class="py-2 px-3 font-semibold text-indigo-600">product-service</td><td class="py-2 px-3">/api/v1/catalog/*</td><td class="py-2 px-3">:3001</td><td class="py-2 px-3">MongoDB</td></tr>
+                    <tr><td class="py-2 px-3 font-semibold text-indigo-600">cart-service</td><td class="py-2 px-3">/api/v1/cart/*</td><td class="py-2 px-3">:3002</td><td class="py-2 px-3">Redis 7 (cart:&lt;userId&gt;)</td></tr>
+                    <tr><td class="py-2 px-3 font-semibold text-indigo-600">order-service</td><td class="py-2 px-3">/api/v1/orders/*</td><td class="py-2 px-3">:3003</td><td class="py-2 px-3">PostgreSQL + RabbitMQ</td></tr>
+                    <tr><td class="py-2 px-3 font-semibold text-indigo-600">payment-service</td><td class="py-2 px-3">/api/v1/payments/*</td><td class="py-2 px-3">:3004</td><td class="py-2 px-3">PostgreSQL</td></tr>
+                    <tr><td class="py-2 px-3 font-semibold text-indigo-600">auth-service</td><td class="py-2 px-3">/api/v1/auth/*</td><td class="py-2 px-3">:3006</td><td class="py-2 px-3">PostgreSQL + JWT</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="lg:col-span-5 bg-slate-900 text-slate-100 rounded-2xl p-6 border border-slate-800 shadow-sm space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <span class="text-[11px] font-mono-code text-sky-400 uppercase font-semibold">Triển khai K3s / Docker</span>
+              <h3 class="text-base font-bold text-white">Manifest Frontend Service</h3>
+            </div>
+            <button type="button" onclick="copyManifestCode()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-mono-code text-sky-300 border border-slate-700 transition inline-flex items-center gap-1.5">
+              <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+              <span id="copyBtnLabel">Copy</span>
+            </button>
+          </div>
+          <div class="flex gap-1.5 border-b border-slate-800 pb-2 text-xs font-mono-code">
+            <button type="button" onclick="switchSnippetTab('k3s')" id="snipBtn-k3s" class="px-2.5 py-1 rounded bg-indigo-600 text-white font-semibold">k3s-frontend.yaml</button>
+            <button type="button" onclick="switchSnippetTab('dockerfile')" id="snipBtn-dockerfile" class="px-2.5 py-1 rounded bg-slate-800 text-slate-400 hover:text-white">Dockerfile</button>
+            <button type="button" onclick="switchSnippetTab('ansible')" id="snipBtn-ansible" class="px-2.5 py-1 rounded bg-slate-800 text-slate-400 hover:text-white">deploy-store.yml</button>
+          </div>
+          <pre id="manifestCodeBlock" class="font-mono-code text-xs text-slate-300 bg-slate-950 p-4 rounded-xl border border-slate-800 overflow-x-auto leading-relaxed max-h-80"></pre>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- CART DRAWER -->
+  <div id="cartDrawerBackdrop" onclick="toggleCartDrawer()" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 hidden"></div>
+  <aside id="cartDrawer" class="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl z-50 transform translate-x-full transition-transform duration-300 flex flex-col border-l border-slate-200">
+    <div class="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
+          <i data-lucide="shopping-cart" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h3 class="font-bold text-slate-900 text-base">Giỏ Hàng Cá Nhân</h3>
+          <p id="cartOwnerSubtext" class="text-[11px] font-mono-code text-slate-500">cart-service (Redis • chưa đăng nhập)</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-1">
+        <button type="button" onclick="clearRealCart()" title="Xóa toàn bộ giỏ hàng" class="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50">
+          <i data-lucide="trash-2" class="w-4 h-4"></i>
+        </button>
+        <button type="button" onclick="toggleCartDrawer()" class="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+    </div>
+
+    <div id="cartItemsContainer" class="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3"></div>
+
+    <div class="p-4 sm:p-5 border-t border-slate-200 bg-slate-50 space-y-4">
+      <div>
+        <label for="couponInput" class="block text-xs font-semibold text-slate-600 mb-1">Mã giảm giá (Thử: <code class="font-mono-code text-indigo-600">DEVOPS20</code> hoặc <code class="font-mono-code text-indigo-600">K3S10</code>)</label>
+        <div class="flex gap-2">
+          <input id="couponInput" type="text" placeholder="Nhập mã ưu đãi..." class="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-xs font-mono-code uppercase bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          <button type="button" onclick="applyCouponCode()" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold transition">Áp dụng</button>
+        </div>
+        <p id="couponFeedback" class="text-[11px] mt-1 font-medium text-emerald-600 hidden"></p>
+      </div>
+
+      <div class="space-y-1.5 text-sm border-t border-slate-200 pt-3">
+        <div class="flex justify-between text-slate-600 text-xs"><span>Tạm tính:</span><span id="cartSubtotalText" class="font-semibold text-slate-800">0 ₫</span></div>
+        <div class="flex justify-between text-slate-600 text-xs"><span>Giảm giá khuyến mãi:</span><span id="cartDiscountText" class="font-semibold text-emerald-600">-0 ₫</span></div>
+        <div class="flex justify-between text-slate-600 text-xs"><span>Phí vận chuyển:</span><span class="font-semibold text-slate-800">Miễn phí</span></div>
+        <div class="flex justify-between text-slate-900 font-extrabold text-base pt-1.5 border-t border-slate-200"><span>Tổng thanh toán:</span><span id="cartTotalText" class="text-indigo-600">0 ₫</span></div>
+      </div>
+
+      <button type="button" onclick="openCheckoutModal()" id="checkoutBtn" class="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md shadow-indigo-500/20 transition flex items-center justify-center gap-2">
+        <i data-lucide="credit-card" class="w-4 h-4"></i>
+        <span>Tiến hành đặt hàng (Saga Checkout)</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- LIVE API TRACE DRAWER -->
+  <section id="traceDrawer" class="fixed bottom-0 inset-x-0 z-40 bg-slate-950 text-slate-200 border-t border-slate-800 shadow-2xl transform translate-y-full transition-transform duration-300 max-h-[65vh] flex flex-col">
+    <div class="px-4 sm:px-6 py-2.5 bg-slate-900 border-b border-slate-800 flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2.5">
+        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span class="font-mono-code text-xs font-bold uppercase tracking-wider text-white">API Gateway & Microservices Live Request Trace</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <button type="button" onclick="clearTraceLogs()" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-mono-code transition">Xóa Log</button>
+        <button type="button" onclick="toggleTraceDrawer()" class="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white">
+          <i data-lucide="chevron-down" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+    <div id="traceLogsContainer" class="flex-1 overflow-y-auto p-4 font-mono-code text-xs space-y-2 max-h-72"></div>
+  </section>
+
+  <!-- PRODUCT DETAIL MODAL -->
+  <div id="productModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-2xl w-full overflow-hidden shadow-2xl border border-slate-200">
+      <div class="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 bg-slate-50">
+        <div class="flex items-center gap-2">
+          <span id="modalProductSku" class="text-xs font-mono-code px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-semibold">SKU</span>
+          <span class="text-xs font-mono-code text-slate-400">GET /api/v1/catalog/products/:id</span>
+        </div>
+        <button type="button" onclick="closeProductModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="p-5 sm:p-6 grid grid-cols-1 sm:grid-cols-2 gap-6 items-center">
+        <div class="rounded-xl overflow-hidden bg-slate-100 border border-slate-200 aspect-[4/3] flex items-center justify-center">
+          <img id="modalProductImg" src="" alt="Product preview" class="w-full h-full object-cover max-w-full" />
+        </div>
+        <div class="space-y-3">
+          <div id="modalProductCategory" class="text-xs font-semibold uppercase tracking-wider text-indigo-600">Danh mục</div>
+          <h3 id="modalProductName" class="text-xl font-extrabold text-slate-900">Tên sản phẩm</h3>
+          <div class="flex items-center gap-3 text-xs">
+            <span id="modalProductRating" class="inline-flex items-center gap-1 font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md">★ 4.9</span>
+            <span id="modalProductStock" class="font-mono-code text-emerald-600 font-medium">Kho: 0</span>
+          </div>
+          <p id="modalProductDesc" class="text-xs sm:text-sm text-slate-600 leading-relaxed"></p>
+          <div id="modalProductSpecs" class="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs font-mono-code text-slate-700 space-y-1"></div>
+          <div class="pt-2 flex items-center justify-between border-t border-slate-100">
+            <div>
+              <span class="text-xs text-slate-400 block">Giá bán niêm yết</span>
+              <span id="modalProductPrice" class="text-xl font-extrabold text-indigo-600">0 ₫</span>
+            </div>
+            <button type="button" id="modalAddToCartBtn" class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-sm transition inline-flex items-center gap-2">
+              <i data-lucide="shopping-cart" class="w-4 h-4"></i>
+              <span>Thêm vào giỏ</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHECKOUT MODAL -->
+  <div id="checkoutModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-200">
+      <div class="px-5 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+        <div>
+          <h3 class="font-bold text-slate-900 text-base">Xác Nhận Đặt Hàng (Saga Transaction)</h3>
+          <p class="text-[11px] font-mono-code text-slate-500">POST /api/v1/orders/checkout &rarr; reserve &rarr; charge &rarr; clear cart</p>
+        </div>
+        <button type="button" onclick="closeCheckoutModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="checkoutForm" onsubmit="submitOrderCheckout(event)" class="p-5 space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label for="custNameInput" class="block text-xs font-semibold text-slate-700 mb-1">Họ và tên người nhận</label>
+            <input id="custNameInput" type="text" required value="Văn Hải" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label for="custPhoneInput" class="block text-xs font-semibold text-slate-700 mb-1">Số điện thoại</label>
+            <input id="custPhoneInput" type="tel" required value="0909 123 456" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+        </div>
+
+        <div>
+          <label for="custAddressInput" class="block text-xs font-semibold text-slate-700 mb-1">Địa chỉ giao hàng</label>
+          <input id="custAddressInput" type="text" required value="Khu Công Nghệ Cao, TP. Thủ Đức, TP. Hồ Chí Minh" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+
+        <div>
+          <label for="paymentMethodSelect" class="block text-xs font-semibold text-slate-700 mb-1">Phương thức thanh toán (<code class="font-mono-code text-indigo-600">payment-service</code>)</label>
+          <select id="paymentMethodSelect" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="VNPay QR / Chuyển khoản">VNPay QR / Chuyển khoản Ngân hàng</option>
+            <option value="Thẻ Visa / MasterCard">Thẻ quốc tế Visa / MasterCard</option>
+            <option value="COD - Thanh toán khi nhận hàng">COD — Thanh toán khi nhận hàng</option>
+          </select>
+        </div>
+
+        <div class="p-3.5 rounded-xl bg-indigo-50/70 border border-indigo-100 flex items-center justify-between">
+          <span class="text-xs font-semibold text-slate-700">Tổng số tiền thanh toán:</span>
+          <span id="checkoutModalTotal" class="text-lg font-extrabold text-indigo-700">0 ₫</span>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+          <button type="button" onclick="closeCheckoutModal()" class="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-100">Hủy</button>
+          <button type="submit" class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm transition inline-flex items-center gap-1.5">
+            <i data-lucide="check-circle" class="w-4 h-4"></i>
+            <span>Xác nhận & Khởi chạy Saga</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- AUTH / JWT MODAL -->
+  <div id="authModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-200">
+      <div class="px-5 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+        <div>
+          <h3 class="font-bold text-slate-900 text-base">Phiên Đăng Nhập & JWT Token</h3>
+          <p class="text-[11px] font-mono-code text-slate-500">auth-service :3006 • PostgreSQL + JWT Bearer</p>
+        </div>
+        <button type="button" onclick="closeAuthModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div id="authFormSection" class="p-5 space-y-4">
+        <div class="flex border-b border-slate-200">
+          <button type="button" id="tabLogin" onclick="switchAuthTab('login')" class="flex-1 py-2 text-sm font-semibold text-indigo-600 border-b-2 border-indigo-600">Đăng Nhập</button>
+          <button type="button" id="tabRegister" onclick="switchAuthTab('register')" class="flex-1 py-2 text-sm font-semibold text-slate-500 hover:text-slate-700">Đăng Ký</button>
+        </div>
+
+        <form id="authForm" onsubmit="handleAuthSubmit(event)" class="space-y-3">
+          <div>
+            <label for="authUsername" class="block text-xs font-semibold text-slate-700 mb-1">Username</label>
+            <input id="authUsername" type="text" required placeholder="vd: testuser" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label for="authPassword" class="block text-xs font-semibold text-slate-700 mb-1">Password</label>
+            <input id="authPassword" type="password" required placeholder="Nhập mật khẩu..." class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <p id="authFeedbackMsg" class="text-xs font-semibold hidden"></p>
+          <button type="submit" id="authSubmitBtn" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold shadow-sm transition">
+            Đăng Nhập
+          </button>
+        </form>
+      </div>
+
+      <div id="authProfileSection" class="p-5 space-y-4 hidden">
+        <div class="flex items-center gap-3 p-3 bg-emerald-50 border border-emerald-100 rounded-xl">
+          <div id="profileAvatar" class="w-10 h-10 rounded-full bg-emerald-200 text-emerald-800 flex items-center justify-center font-bold text-base">U</div>
+          <div>
+            <div id="profileUsername" class="font-bold text-slate-900 text-sm">user</div>
+            <div id="profileRole" class="text-xs text-emerald-700 font-mono-code">Role: BUYER</div>
+          </div>
+        </div>
+        <div class="bg-slate-900 text-slate-200 p-3 rounded-xl font-mono-code text-[11px] space-y-1">
+          <div class="text-sky-400 font-semibold">// Decoded JWT Payload</div>
+          <div id="jwtPayloadPreview" class="text-slate-300 break-all"></div>
+        </div>
+        <div class="bg-slate-100 text-slate-600 p-2.5 rounded-xl font-mono-code text-[10px] break-all max-h-20 overflow-y-auto" id="jwtRawTokenPreview"></div>
+        <div class="flex justify-between gap-2">
+          <button type="button" onclick="handleLogout()" class="px-4 py-2 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-semibold transition">Đăng Xuất</button>
+          <button type="button" onclick="verifyCurrentSession(true)" class="px-4 py-2 rounded-xl border border-indigo-200 text-indigo-700 hover:bg-indigo-50 text-xs font-semibold transition">Verify Token</button>
+          <button type="button" onclick="closeAuthModal()" class="px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-semibold">Đóng</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toastContainer" class="fixed top-20 right-4 z-50 space-y-2 max-w-sm w-full pointer-events-none"></div>
+
+  <footer class="bg-white border-t border-slate-200 mt-12 py-6 text-xs text-slate-500">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div class="flex items-center gap-2">
+        <span class="font-bold text-slate-800">CloudMart Microservices Store</span>
+        <span>•</span>
+        <span>Đồ án DevOps: Ansible + Docker + K3s Stack</span>
+      </div>
+      <div class="font-mono-code text-slate-400">
+        API Gateway: <span id="footerGatewayUrl" class="text-slate-600">http://localhost:3000/api/v1</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // =========================================================
+    // 1. SVG ARTWORK MAP & DEFAULT CATALOG FALLBACK
+    // =========================================================
+    function makeHardwareSvg(accent, badge, title, subtitle) {
+      return "data:image/svg+xml;utf8," + encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 450" width="600" height="450">
+          <defs>
+            <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#0f172a"/>
+              <stop offset="100%" stop-color="#1e293b"/>
+            </linearGradient>
+          </defs>
+          <rect width="600" height="450" fill="url(#g)"/>
+          <rect x="70" y="95" width="460" height="240" rx="22" fill="#111827" stroke="${accent}" stroke-width="3"/>
+          <rect x="105" y="130" width="130" height="32" rx="8" fill="${accent}" fill-opacity="0.2" stroke="${accent}" stroke-width="1.5"/>
+          <text x="170" y="151" fill="${accent}" font-family="monospace" font-size="14" font-weight="bold" text-anchor="middle">${badge}</text>
+          <circle cx="465" cy="146" r="7" fill="#10b981"/>
+          <circle cx="490" cy="146" r="7" fill="${accent}"/>
+          <text x="105" y="225" fill="#f8fafc" font-family="sans-serif" font-size="28" font-weight="bold">${title}</text>
+          <text x="105" y="268" fill="#94a3b8" font-family="monospace" font-size="16">${subtitle}</text>
+          <rect x="105" y="295" width="390" height="10" rx="5" fill="#1e293b"/>
+          <rect x="105" y="295" width="240" height="10" rx="5" fill="${accent}"/>
+        </svg>
+      `);
+    }
+
+    const IMAGE_BY_ID = {
+      'prod-1': makeHardwareSvg('#6366f1', 'K3S NODE', 'Mini Server i7', '64GB DDR5 • Dual 2.5GbE LAN'),
+      'prod-2': makeHardwareSvg('#38bdf8', '10GbE L3', 'Managed Switch 8P', 'SFP+ Uplink • VLAN / QoS'),
+      'prod-3': makeHardwareSvg('#ec4899', 'QMK / VIA', 'CNC Mech 75%', 'Gasket Mount • Tactile Switch'),
+      'prod-4': makeHardwareSvg('#0ea5e9', '4K UHD IPS', 'Dev Monitor 27"', '99% sRGB • USB-C 90W PD'),
+      'prod-5': makeHardwareSvg('#8b5cf6', 'HYBRID ANC', 'Studio ANC Pro', '45h Pin • Multipoint BT 5.3'),
+      'prod-6': makeHardwareSvg('#14b8a6', 'USB-C / XLR', 'Dynamic Mic Pro', 'Cardioid • Zero-Latency'),
+      'prod-7': makeHardwareSvg('#6366f1', 'NVMe GEN5', '4TB Enterprise SSD', '14,000 MB/s • PCIe 5.0 x4'),
+      'prod-8': makeHardwareSvg('#f59e0b', 'FIDO2 / SSH', 'Hardware Security Key', 'USB-C • WebAuthn • GPG')
+    };
+
+    let PRODUCTS = [
+      { id: 'prod-1', sku: 'SRV-K3S-01', name: 'Mini PC Homelab Cluster Node i7-13700H (64GB RAM)', category: 'server', categoryLabel: 'Mini Server & Homelab', price: 14900000, rating: 4.9, stock: 8, featured: true, desc: 'Máy chủ mini tối ưu cho cụm Kubernetes K3s, Docker Swarm và Proxmox.', specs: ['CPU: Intel Core i7-13700H', 'RAM: 64GB DDR5', 'LAN: Dual 2.5GbE'] },
+      { id: 'prod-2', sku: 'NET-SW10G-02', name: 'Switch Quản Lý Layer 3 10GbE 8 Cổng SFP+', category: 'server', categoryLabel: 'Mini Server & Homelab', price: 5490000, rating: 4.8, stock: 14, featured: true, desc: 'Chuyển mạch tốc độ cao cho cụm Microservices và VLAN nội bộ.', specs: ['Ports: 8x 10G SFP+', 'Switching: 160 Gbps'] },
+      { id: 'prod-3', sku: 'PER-KB75-03', name: 'Bàn Phím Cơ DevOps CNC Nhôm 75% Hot-Swap (QMK/VIA)', category: 'peripherals', categoryLabel: 'Bàn phím & Màn hình', price: 3290000, rating: 4.9, stock: 19, featured: true, desc: 'Khung nhôm CNC nguyên khối, hỗ trợ QMK/VIA.', specs: ['Layout: 75%', 'Firmware: QMK / VIA'] },
+      { id: 'prod-4', sku: 'PER-MON4K-04', name: 'Màn Hình Lập Trình 27" 4K IPS USB-C 90W PD', category: 'peripherals', categoryLabel: 'Bàn phím & Màn hình', price: 9850000, rating: 4.7, stock: 6, featured: false, desc: 'Màn hình 4K IPS hiển thị sắc nét code và Grafana dashboard.', specs: ['Panel: 27" IPS 4K', 'USB-C: 90W PD'] },
+      { id: 'prod-5', sku: 'AUD-ANC-05', name: 'Tai Nghe Chống Ồn Chủ Động Studio ANC Pro', category: 'audio', categoryLabel: 'Âm thanh & Hội nghị', price: 4650000, rating: 4.8, stock: 22, featured: false, desc: 'Khử ồn 45dB giúp tập trung debug và họp Daily Standup.', specs: ['ANC: -45dB', 'Battery: 45h'] },
+      { id: 'prod-6', sku: 'AUD-MIC-06', name: 'Micro Thu Âm USB-C / XLR Dynamic Cho Họp & Podcast', category: 'audio', categoryLabel: 'Âm thanh & Hội nghị', price: 2490000, rating: 4.6, stock: 9, featured: false, desc: 'Định hướng Cardioid loại bỏ tiếng gõ bàn phím cơ.', specs: ['Pattern: Cardioid', 'Output: USB-C & XLR'] },
+      { id: 'prod-7', sku: 'SEC-NVME-07', name: 'Ổ Cứng SSD NVMe PCIe Gen 5 4TB Enterprise', category: 'security', categoryLabel: 'Lưu trữ & Bảo mật', price: 8900000, rating: 4.9, stock: 5, featured: true, desc: 'Tốc độ đọc ghi cực cao cho Docker layers và database.', specs: ['Capacity: 4TB', 'Read: 14,000 MB/s'] },
+      { id: 'prod-8', sku: 'SEC-KEY-08', name: 'Khóa Bảo Mật Phần Cứng FIDO2 / SSH Hardware Token', category: 'security', categoryLabel: 'Lưu trữ & Bảo mật', price: 1650000, rating: 5.0, stock: 30, featured: false, desc: 'Xác thực 2 lớp phần cứng cho GitHub, SSH và AWS IAM.', specs: ['Protocol: FIDO2 / U2F', 'Interface: USB-C + NFC'] }
+    ];
+
+    function getProductImage(id) {
+      return IMAGE_BY_ID[id] || IMAGE_BY_ID['prod-1'];
+    }
+
+    // =========================================================
+    // 2. APPLICATION STATE
+    // =========================================================
+    let API_BASE_URL = localStorage.getItem('cloudmart_gateway_url') || 'http://localhost:3000/api/v1';
+    let currentCategory = 'all';
+    let favoritesOnly = false;
+    let currentAuthMode = 'login';
+    let activeSnippetTab = 'k3s';
+    let activeDiscountRate = 0;
+
+    let cartItems = [];
+    let ORDERS = [];
+    let wishlist = JSON.parse(localStorage.getItem('cloudmart_wishlist') || '["prod-1"]');
+    let traceLogs = [];
+    let totalRequestsCount = 0;
+    let totalErrorsCount = 0;
+
+    const SERVICES_STATE = [
+      { id: 'api-gateway',     key: 'gateway',  port: 3000, db: 'Stateless',          endpoint: '/api/v1/*',        pods: 2, healthy: true, latency: 10 },
+      { id: 'catalog-service', key: 'catalog',  port: 3001, db: 'MongoDB 7',          endpoint: '/api/v1/catalog',  pods: 2, healthy: true, latency: 18 },
+      { id: 'cart-service',    key: 'cart',     port: 3002, db: 'Redis 7 (Per-User)', endpoint: '/api/v1/cart',     pods: 2, healthy: true, latency: 9 },
+      { id: 'order-service',   key: 'orders',   port: 3003, db: 'Postgres + RabbitMQ',endpoint: '/api/v1/orders',   pods: 2, healthy: true, latency: 26 },
+      { id: 'payment-service', key: 'payments', port: 3004, db: 'PostgreSQL 15',      endpoint: '/api/v1/payments', pods: 2, healthy: true, latency: 32 },
+      { id: 'auth-service',    key: 'auth',     port: 3006, db: 'PostgreSQL + JWT',   endpoint: '/api/v1/auth',     pods: 2, healthy: true, latency: 14 }
+    ];
+
+    let latencyChart = null;
+    let trafficChart = null;
+    const trafficHistory = { labels: ['T-5', 'T-4', 'T-3', 'T-2', 'T-1', 'Now'], ok: [8, 12, 10, 15, 14, 0], err: [0, 0, 0, 0, 0, 0] };
+
+    // =========================================================
+    // 3. UTILITIES & TRACE LOGGER
+    // =========================================================
+    function formatVND(amount) {
+      return new Intl.NumberFormat('vi-VN').format(Math.round(amount || 0)) + ' ₫';
+    }
+
+    function getAuthToken() { return localStorage.getItem('cloudmart_token'); }
+
+    function getCurrentUser() {
+      try { return JSON.parse(localStorage.getItem('cloudmart_user') || 'null'); }
+      catch { return null; }
+    }
+
+    function decodeJwtPayload(token) {
+      try {
+        const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+        return JSON.parse(atob(base64));
+      } catch { return null; }
+    }
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const colors = {
+        success: 'bg-emerald-600 text-white border-emerald-500',
+        error: 'bg-rose-600 text-white border-rose-500',
+        warning: 'bg-amber-500 text-slate-950 border-amber-400',
+        info: 'bg-slate-900 text-white border-slate-700'
+      };
+      const el = document.createElement('div');
+      el.className = `pointer-events-auto px-4 py-3 rounded-xl shadow-lg border text-xs font-semibold ${colors[type] || colors.info}`;
+      el.textContent = message;
+      container.appendChild(el);
+      setTimeout(() => el.remove(), 3200);
+    }
+
+    function logApiTrace(method, path, status, ms, source, detail = '') {
+      totalRequestsCount++;
+      if (status >= 400 || status === 0) totalErrorsCount++;
+
+      const time = new Date().toLocaleTimeString('vi-VN', { hour12: false });
+      traceLogs.unshift({ time, method, path, status, ms, source, detail });
+      if (traceLogs.length > 60) traceLogs.pop();
+
+      const badge = document.getElementById('traceCountBadge');
+      if (badge) badge.textContent = traceLogs.length;
+
+      const lastInd = document.getElementById('lastApiCallIndicator');
+      if (lastInd) {
+        lastInd.textContent = `${method} ${path} (${status})`;
+        lastInd.className = status >= 200 && status < 300 ? 'text-emerald-400 truncate max-w-[200px]' : 'text-rose-400 truncate max-w-[200px]';
+      }
+
+      trafficHistory.ok[trafficHistory.ok.length - 1] += (status >= 200 && status < 400) ? 1 : 0;
+      trafficHistory.err[trafficHistory.err.length - 1] += (status >= 400 || status === 0) ? 1 : 0;
+
+      renderTraceLogs();
+      updateDevOpsKPIs();
+    }
+
+    function renderTraceLogs() {
+      const box = document.getElementById('traceLogsContainer');
+      if (!box) return;
+      if (traceLogs.length === 0) {
+        box.innerHTML = '<div class="text-slate-500">Chưa có request nào được ghi nhận.</div>';
+        return;
+      }
+      box.innerHTML = traceLogs.map((l) => {
+        const stColor = l.status >= 200 && l.status < 300 ? 'text-emerald-400' : (l.status >= 400 ? 'text-amber-400' : 'text-rose-400');
+        return `
+          <div class="flex flex-wrap items-center gap-2 bg-slate-900/80 border border-slate-800 px-3 py-1.5 rounded-lg">
+            <span class="text-slate-500">[${l.time}]</span>
+            <span class="px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-bold">${l.method}</span>
+            <span class="text-slate-200">${l.path}</span>
+            <span class="${stColor} font-bold">${l.status}</span>
+            <span class="text-slate-400">${l.ms}ms</span>
+            <span class="text-sky-400">[${l.source}]</span>
+            ${l.detail ? `<span class="text-slate-400 truncate max-w-md">${l.detail}</span>` : ''}
+          </div>`;
+      }).join('');
+    }
+
+    function clearTraceLogs() {
+      traceLogs = [];
+      document.getElementById('traceCountBadge').textContent = '0';
+      renderTraceLogs();
+    }
+
+    function toggleTraceDrawer() {
+      document.getElementById('traceDrawer').classList.toggle('translate-y-full');
+    }
+
+    // =========================================================
+    // 4. LIVE AUTH SERVICE (PORT 3006 VIA GATEWAY)
+    // =========================================================
+    function openAuthModal() {
+      const modal = document.getElementById('authModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      syncAuthUI();
+    }
+
+    function closeAuthModal() {
+      const modal = document.getElementById('authModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function switchAuthTab(mode) {
+      currentAuthMode = mode;
+      const msg = document.getElementById('authFeedbackMsg');
+      msg.classList.add('hidden');
+
+      const tabLogin = document.getElementById('tabLogin');
+      const tabRegister = document.getElementById('tabRegister');
+      const btn = document.getElementById('authSubmitBtn');
+
+      if (mode === 'login') {
+        tabLogin.className = 'flex-1 py-2 text-sm font-semibold text-indigo-600 border-b-2 border-indigo-600';
+        tabRegister.className = 'flex-1 py-2 text-sm font-semibold text-slate-500 hover:text-slate-700';
+        btn.textContent = 'Đăng Nhập';
+      } else {
+        tabRegister.className = 'flex-1 py-2 text-sm font-semibold text-indigo-600 border-b-2 border-indigo-600';
+        tabLogin.className = 'flex-1 py-2 text-sm font-semibold text-slate-500 hover:text-slate-700';
+        btn.textContent = 'Đăng Ký Tài Khoản';
+      }
+    }
+
+    async function handleAuthSubmit(e) {
+      e.preventDefault();
+      const username = document.getElementById('authUsername').value.trim();
+      const password = document.getElementById('authPassword').value;
+      const msg = document.getElementById('authFeedbackMsg');
+      const endpoint = currentAuthMode === 'login' ? '/auth/login' : '/auth/register';
+      const t0 = performance.now();
+
+      msg.classList.add('hidden');
+
+      try {
+        const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json().catch(() => ({}));
+        logApiTrace('POST', endpoint, res.status, Math.round(performance.now() - t0), 'LIVE-AUTH', data.message || data.error || '');
+
+        if (!res.ok) {
+          msg.textContent = data.error || `Lỗi ${res.status}`;
+          msg.className = 'text-xs font-semibold text-rose-600';
+          return;
+        }
+
+        if (currentAuthMode === 'register') {
+          switchAuthTab('login');
+          msg.textContent = `Đăng ký "${username}" thành công! Vui lòng đăng nhập.`;
+          msg.className = 'text-xs font-semibold text-emerald-600';
+          document.getElementById('authPassword').value = '';
+          showToast(`Đã tạo tài khoản ${username} trong PostgreSQL`, 'success');
+          return;
+        }
+
+        localStorage.setItem('cloudmart_token', data.token);
+        localStorage.setItem('cloudmart_user', JSON.stringify(data.user));
+        document.getElementById('authPassword').value = '';
+        syncAuthUI();
+        await fetchRealCart();
+        closeAuthModal();
+        showToast(`Đăng nhập thành công: ${data.user.username} (ID: ${data.user.userId})`, 'success');
+      } catch (err) {
+        logApiTrace('POST', endpoint, 0, Math.round(performance.now() - t0), 'NETWORK-ERR', err.message);
+        msg.textContent = 'Không kết nối được Gateway :3000 — ' + err.message;
+        msg.className = 'text-xs font-semibold text-rose-600';
+      }
+    }
+
+    async function verifyCurrentSession(notify = false) {
+      const token = getAuthToken();
+      if (!token) return false;
+      const t0 = performance.now();
+      try {
+        const res = await fetch(`${API_BASE_URL}/auth/verify`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json().catch(() => ({}));
+        logApiTrace('GET', '/auth/verify', res.status, Math.round(performance.now() - t0), 'LIVE-AUTH', data.valid ? 'JWT Valid' : (data.error || 'Invalid'));
+
+        if (!res.ok || !data.valid) {
+          handleLogout(false);
+          if (notify) showToast('Token hết hạn hoặc không hợp lệ', 'error');
+          return false;
+        }
+        if (data.user) localStorage.setItem('cloudmart_user', JSON.stringify(data.user));
+        syncAuthUI();
+        if (notify) showToast('JWT hợp lệ — đã xác thực qua auth-service', 'success');
+        return true;
+      } catch (err) {
+        logApiTrace('GET', '/auth/verify', 0, Math.round(performance.now() - t0), 'NETWORK-ERR', err.message);
+        return false;
+      }
+    }
+
+    function handleLogout(notify = true) {
+      localStorage.removeItem('cloudmart_token');
+      localStorage.removeItem('cloudmart_user');
+      cartItems = [];
+      activeDiscountRate = 0;
+      syncAuthUI();
+      renderCart();
+      if (notify) showToast('Đã đăng xuất phiên JWT', 'info');
+    }
+
+    function syncAuthUI() {
+      const token = getAuthToken();
+      const user = getCurrentUser();
+      const formSection = document.getElementById('authFormSection');
+      const profileSection = document.getElementById('authProfileSection');
+      const avatarEl = document.getElementById('userAvatarInitials');
+      const nameEl = document.getElementById('userNameDisplay');
+      const roleEl = document.getElementById('userRoleDisplay');
+      const cartOwner = document.getElementById('cartOwnerSubtext');
+
+      if (token && user) {
+        const uid = user.userId || user.id || '?';
+        const initials = (user.username || 'U').slice(0, 2).toUpperCase();
+        formSection.classList.add('hidden');
+        profileSection.classList.remove('hidden');
+
+        document.getElementById('profileUsername').textContent = user.username;
+        document.getElementById('profileRole').textContent = `userId: ${uid} • Role: ${user.role || 'BUYER'}`;
+        document.getElementById('profileAvatar').textContent = initials;
+        document.getElementById('jwtPayloadPreview').textContent = JSON.stringify(decodeJwtPayload(token) || user);
+        document.getElementById('jwtRawTokenPreview').textContent = `Bearer ${token}`;
+
+        avatarEl.textContent = initials;
+        nameEl.textContent = user.username;
+        roleEl.textContent = `JWT: ${user.role || 'BUYER'} (#${uid})`;
+        roleEl.className = 'text-[10px] text-emerald-600 font-mono-code';
+        if (cartOwner) cartOwner.textContent = `Redis key: cart:${uid} (${user.username})`;
+      } else {
+        formSection.classList.remove('hidden');
+        profileSection.classList.add('hidden');
+
+        avatarEl.textContent = '?';
+        nameEl.textContent = 'Đăng nhập';
+        roleEl.textContent = 'Chưa xác thực';
+        roleEl.className = 'text-[10px] text-rose-500 font-mono-code';
+        if (cartOwner) cartOwner.textContent = 'cart-service (Redis • chưa đăng nhập)';
+      }
+    }
+
+    // =========================================================
+    // 5. LIVE PRODUCT SERVICE (PORT 3001 VIA GATEWAY)
+    // =========================================================
+    async function fetchRealProducts() {
+      const catSvc = SERVICES_STATE.find((s) => s.id === 'catalog-service');
+      if (catSvc && !catSvc.healthy) {
+        renderProducts();
+        return;
+      }
+      const t0 = performance.now();
+      try {
+        const res = await fetch(`${API_BASE_URL}/catalog/products`);
+        const json = await res.json();
+        const ms = Math.round(performance.now() - t0);
+        logApiTrace('GET', '/catalog/products', res.status, ms, 'LIVE-PRODUCT', `${(json.data || []).length} items`);
+        if (res.ok && Array.isArray(json.data) && json.data.length > 0) {
+          PRODUCTS = json.data;
+          if (catSvc) catSvc.latency = ms;
+        }
+      } catch (err) {
+        logApiTrace('GET', '/catalog/products', 0, Math.round(performance.now() - t0), 'FALLBACK-CATALOG', err.message);
+      }
+      renderProducts();
+      renderCart();
+    }
+
+    // =========================================================
+    // 6. LIVE REDIS CART SERVICE (PORT 3002 VIA GATEWAY)
+    // =========================================================
+    async function fetchRealCart() {
+      const token = getAuthToken();
+      if (!token) {
+        cartItems = [];
+        renderCart();
+        return;
+      }
+      const cartSvc = SERVICES_STATE.find((s) => s.id === 'cart-service');
+      if (cartSvc && !cartSvc.healthy) {
+        logApiTrace('GET', '/cart/items', 503, 4, 'CIRCUIT-BREAKER', 'cart-service DOWN');
+        return;
+      }
+      const t0 = performance.now();
+      try {
+        const res = await fetch(`${API_BASE_URL}/cart/items`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json().catch(() => ({}));
+        logApiTrace('GET', '/cart/items', res.status, Math.round(performance.now() - t0), 'LIVE-REDIS', `userId=${data.userId || '?'}`);
+        if (res.status === 401) {
+          handleLogout(false);
+          return;
+        }
+        if (res.ok && Array.isArray(data.items)) {
+          cartItems = data.items;
+          renderCart();
+        }
+      } catch (err) {
+        logApiTrace('GET', '/cart/items', 0, Math.round(performance.now() - t0), 'NETWORK-ERR', err.message);
+      }
+    }
+
+    async function addToCart(productId, quantity = 1) {
+      const token = getAuthToken();
+      if (!token) {
+        showToast('Vui lòng đăng nhập để lưu giỏ hàng riêng vào Redis', 'warning');
+        openAuthModal();
+        return;
+      }
+      const cartSvc = SERVICES_STATE.find((s) => s.id === 'cart-service');
+      if (cartSvc && !cartSvc.healthy) {
+        logApiTrace('POST', '/cart/items', 503, 5, 'CIRCUIT-BREAKER', 'cart-service DOWN');
+        showToast('503: cart-service đang tắt (Chaos Demo)', 'error');
+        return;
+      }
+      const t0 = performance.now();
+      try {
+        const res = await fetch(`${API_BASE_URL}/cart/items`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ productId, quantity })
+        });
+        const data = await res.json().catch(() => ({}));
+        logApiTrace('POST', '/cart/items', res.status, Math.round(performance.now() - t0), 'LIVE-REDIS', `${productId} +${quantity}`);
+        if (res.status === 401) {
+          handleLogout(false);
+          openAuthModal();
+          return;
+        }
+        if (res.ok && Array.isArray(data.items)) {
+          cartItems = data.items;
+          renderCart();
+          const prod = PRODUCTS.find((p) => p.id === productId);
+          showToast(`Đã lưu "${prod ? prod.name : productId}" vào Redis Cart`, 'success');
+        } else {
+          showToast(data.error || 'Không thêm được vào giỏ hàng', 'error');
+        }
+      } catch (err) {
+        logApiTrace('POST', '/cart/items', 0, Math.round(performance.now() - t0), 'NETWORK-ERR', err.message);
+        showToast('Lỗi kết nối cart-service qua Gateway', 'error');
+      }
+    }
+
+    async function updateCartQty(productId, newQty) {
+      const token = getAuthToken();
+      if (!token) return;
+      const t0 = performance.now();
+      try {
+        const res = await fetch(`${API_BASE_URL}/cart/items/${productId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ quantity: newQty })
+        });
+        const data = await res.json().catch(() => ({}));
+        logApiTrace('PATCH', `/cart/items/${productId}`, res.status, Math.round(performance.now() - t0), 'LIVE-REDIS', `qty=${newQty}`);
+        if (res.ok && Array.isArray(data.items)) {
+          cartItems = data.items;
+          renderCart();
+        }
+      } catch (err) {
+        logApiTrace('PATCH', `/cart/items/${productId}`, 0, Math.round(performance.now() - t0), 'NETWORK-ERR', err.message);
+      }
+    }
+
+    async function removeFromCart(productId) {
+      const token = getAuthToken();
+      if (!token) return;
+      const t0 = performance.now();
+      try {
+        const res = await fetch(`${API_BASE_URL}/cart/items/${productId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json().catch(() => ({}));
+        logApiTrace('DELETE', `/cart/items/${productId}`, res.status, Math.round(performance.now() - t0), 'LIVE-REDIS', productId);
+        if (res.ok && Array.isArray(data.items)) {
+          cartItems = data.items;
+          renderCart();
+        }
+      } catch (err) {
+        logApiTrace('DELETE', `/cart/items/${productId}`, 0, Math.round(performance.now() - t0), 'NETWORK-ERR', err.message);
+      }
+    }
+
+    async function clearRealCart() {
+      const token = getAuthToken();
+      if (!token) return;
+      const t0 = performance.now();
+      try {
+        const res = await fetch(`${API_BASE_URL}/cart/items`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        logApiTrace('DELETE', '/cart/items', res.status, Math.round(performance.now() - t0), 'LIVE-REDIS', 'clear');
+        if (res.ok) {
+          cartItems = [];
+          renderCart();
+          showToast('Đã xóa sạch giỏ hàng Redis', 'info');
+        }
+      } catch (err) {
+        logApiTrace('DELETE', '/cart/items', 0, Math.round(performance.now() - t0), 'NETWORK-ERR', err.message);
+      }
+    }
+
+    function getCartEntries() {
+      return cartItems.map((it) => ({
+        productId: it.productId,
+        quantity: Number(it.quantity) || 1,
+        product: PRODUCTS.find((p) => p.id === it.productId)
+      }));
+    }
+
+    function calculateCartTotals() {
+      const entries = getCartEntries();
+      const subtotal = entries.reduce((sum, e) => sum + ((e.product ? e.product.price : 0) * e.quantity), 0);
+      const discount = subtotal * activeDiscountRate;
+      const total = Math.max(0, subtotal - discount);
+      return { entries, subtotal, discount, total };
+    }
+
+    function renderCart() {
+      const container = document.getElementById('cartItemsContainer');
+      const badge = document.getElementById('cartCountBadge');
+      const { entries, subtotal, discount, total } = calculateCartTotals();
+      const totalQty = entries.reduce((sum, e) => sum + e.quantity, 0);
+
+      if (badge) badge.textContent = totalQty;
+      document.getElementById('cartSubtotalText').textContent = formatVND(subtotal);
+      document.getElementById('cartDiscountText').textContent = '-' + formatVND(discount);
+      document.getElementById('cartTotalText').textContent = formatVND(total);
+
+      if (!getAuthToken()) {
+        container.innerHTML = `
+          <div class="text-center py-12 space-y-3">
+            <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto">
+              <i data-lucide="lock" class="w-6 h-6"></i>
+            </div>
+            <p class="text-sm font-semibold text-slate-800">Chưa đăng nhập phiên JWT</p>
+            <p class="text-xs text-slate-500">Giỏ hàng tách riêng theo từng <code>userId</code> trong Redis. Hãy đăng nhập để đồng bộ.</p>
+            <button type="button" onclick="toggleCartDrawer(); openAuthModal();" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold">Đăng nhập ngay</button>
+          </div>`;
+        lucide.createIcons();
+        return;
+      }
+
+      if (entries.length === 0) {
+        container.innerHTML = '<div class="text-center py-12 text-sm text-slate-500">Giỏ hàng cá nhân trên Redis đang trống.</div>';
+        return;
+      }
+
+      container.innerHTML = entries.map(({ productId, quantity, product }) => {
+        const name = product ? product.name : productId;
+        const price = product ? product.price : 0;
+        return `
+          <div class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 bg-white">
+            <img src="${getProductImage(productId)}" alt="${name}" class="w-14 h-12 rounded-lg object-cover border border-slate-200 flex-shrink-0" />
+            <div class="flex-1 min-w-0">
+              <div class="text-xs font-bold text-slate-900 truncate">${name}</div>
+              <div class="text-[11px] font-mono-code text-slate-500">${productId} • ${formatVND(price)}</div>
+              <div class="mt-1.5 flex items-center justify-between">
+                <div class="inline-flex items-center gap-1">
+                  <button type="button" onclick="updateCartQty('${productId}', ${quantity - 1})" class="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 text-xs font-bold">-</button>
+                  <span class="font-mono-code text-xs font-bold w-6 text-center">${quantity}</span>
+                  <button type="button" onclick="updateCartQty('${productId}', ${quantity + 1})" class="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 text-xs font-bold">+</button>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-extrabold text-indigo-600">${formatVND(price * quantity)}</span>
+                  <button type="button" onclick="removeFromCart('${productId}')" class="text-slate-400 hover:text-rose-600 text-xs font-bold">✕</button>
+                </div>
+              </div>
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    function toggleCartDrawer() {
+      const drawer = document.getElementById('cartDrawer');
+      const backdrop = document.getElementById('cartDrawerBackdrop');
+      const isClosed = drawer.classList.contains('translate-x-full');
+      if (isClosed) {
+        drawer.classList.remove('translate-x-full');
+        backdrop.classList.remove('hidden');
+        fetchRealCart();
+      } else {
+        drawer.classList.add('translate-x-full');
+        backdrop.classList.add('hidden');
+      }
+    }
+
+    async function applyCouponCode() {
+      const code = document.getElementById('couponInput').value.trim().toUpperCase();
+      const fb = document.getElementById('couponFeedback');
+      if (!code) return;
+      const t0 = performance.now();
+      try {
+        const res = await fetch(`${API_BASE_URL}/cart/coupon`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code })
+        });
+        const data = await res.json();
+        logApiTrace('POST', '/cart/coupon', res.status, Math.round(performance.now() - t0), 'LIVE-CART', `${code} valid=${data.discountValid}`);
+        if (data.discountValid) {
+          activeDiscountRate = data.discountRate || 0;
+          fb.textContent = `Áp dụng mã ${code} (giảm ${Math.round(activeDiscountRate * 100)}%)`;
+          fb.className = 'text-[11px] mt-1 font-medium text-emerald-600';
+        } else {
+          activeDiscountRate = 0;
+          fb.textContent = 'Mã không hợp lệ (Thử DEVOPS20 hoặc K3S10)';
+          fb.className = 'text-[11px] mt-1 font-medium text-rose-600';
+        }
+      } catch (err) {
+        logApiTrace('POST', '/cart/coupon', 0, Math.round(performance.now() - t0), 'NETWORK-ERR', err.message);
+      }
+      renderCart();
+    }
+
+    // =========================================================
+    // 7. STOREFRONT RENDERING & PRODUCT MODAL
+    // =========================================================
+    function renderProducts() {
+      const grid = document.getElementById('productGrid');
+      const outageBanner = document.getElementById('catalogOutageBanner');
+      const catSvc = SERVICES_STATE.find((s) => s.id === 'catalog-service');
+
+      if (catSvc && !catSvc.healthy) {
+        outageBanner.classList.remove('hidden');
+        grid.innerHTML = '';
+        document.getElementById('catalogStatusDot').className = 'w-2 h-2 rounded-full bg-rose-500';
+        document.getElementById('catalogServiceReadout').textContent = 'product-service: 503 DOWN';
+        return;
+      }
+
+      outageBanner.classList.add('hidden');
+      document.getElementById('catalogStatusDot').className = 'w-2 h-2 rounded-full bg-emerald-500';
+      document.getElementById('catalogServiceReadout').textContent = `product-service: 200 OK (${catSvc ? catSvc.latency : 18}ms)`;
+
+      const q = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+      const stockFilter = document.getElementById('stockFilterSelect').value;
+      const sortMode = document.getElementById('sortSelect').value;
+
+      document.getElementById('clearSearchBtn').classList.toggle('hidden', !q && currentCategory === 'all' && !favoritesOnly);
+
+      let list = PRODUCTS.filter((p) => {
+        if (currentCategory !== 'all' && p.category !== currentCategory) return false;
+        if (favoritesOnly && !wishlist.includes(p.id)) return false;
+        if (stockFilter === 'instock' && p.stock <= 0) return false;
+        if (stockFilter === 'lowstock' && p.stock > 10) return false;
+        if (q && !(p.name.toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q) || (p.categoryLabel || '').toLowerCase().includes(q))) return false;
+        return true;
+      });
+
+      if (sortMode === 'price-asc') list.sort((a, b) => a.price - b.price);
+      else if (sortMode === 'price-desc') list.sort((a, b) => b.price - a.price);
+      else if (sortMode === 'rating-desc') list.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+      else list.sort((a, b) => Number(b.featured) - Number(a.featured));
+
+      if (list.length === 0) {
+        grid.innerHTML = '<div class="col-span-full text-center py-12 bg-white rounded-2xl border border-slate-200 text-sm text-slate-500">Không tìm thấy sản phẩm phù hợp bộ lọc.</div>';
+        return;
+      }
+
+      grid.innerHTML = list.map((p) => {
+        const isFav = wishlist.includes(p.id);
+        return `
+          <article class="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition overflow-hidden flex flex-col">
+            <div class="relative aspect-[4/3] bg-slate-900 overflow-hidden cursor-pointer" onclick="openProductModal('${p.id}')">
+              <img src="${getProductImage(p.id)}" alt="${p.name}" class="w-full h-full object-cover hover:scale-105 transition duration-300" />
+              <span class="absolute top-2.5 left-2.5 text-[10px] font-mono-code px-2 py-0.5 rounded-md bg-slate-900/80 text-sky-300 border border-slate-700">${p.sku}</span>
+              <button type="button" onclick="event.stopPropagation(); toggleWishlist('${p.id}')" class="absolute top-2.5 right-2.5 p-1.5 rounded-lg bg-white/90 hover:bg-white shadow ${isFav ? 'text-rose-600' : 'text-slate-400'}">
+                <i data-lucide="heart" class="w-4 h-4 ${isFav ? 'fill-current' : ''}"></i>
+              </button>
+            </div>
+            <div class="p-4 flex-1 flex flex-col justify-between gap-3">
+              <div class="space-y-1.5">
+                <div class="flex items-center justify-between text-[11px]">
+                  <span class="font-semibold text-indigo-600">${p.categoryLabel || 'Hardware'}</span>
+                  <span class="font-mono-code text-amber-600 font-semibold">★ ${p.rating || 4.8}</span>
+                </div>
+                <h3 onclick="openProductModal('${p.id}')" class="font-bold text-sm text-slate-900 leading-snug cursor-pointer hover:text-indigo-600 line-clamp-2">${p.name}</h3>
+                <p class="text-[11px] font-mono-code ${p.stock <= 10 ? 'text-amber-600' : 'text-emerald-600'}">Kho: ${p.stock} sản phẩm</p>
+              </div>
+              <div class="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                <span class="text-base font-extrabold text-indigo-600">${formatVND(p.price)}</span>
+                <button type="button" onclick="addToCart('${p.id}', 1)" ${p.stock <= 0 ? 'disabled' : ''} class="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white text-xs font-semibold transition inline-flex items-center gap-1">
+                  <i data-lucide="shopping-cart" class="w-3.5 h-3.5"></i>
+                  <span>${p.stock > 0 ? 'Thêm' : 'Hết'}</span>
+                </button>
+              </div>
+            </div>
+          </article>`;
+      }).join('');
+      lucide.createIcons();
+    }
+
+    function selectCategory(cat) {
+      currentCategory = cat;
+      favoritesOnly = false;
+      document.querySelectorAll('.cat-pill').forEach((btn) => {
+        const active = btn.dataset.cat === cat;
+        btn.className = active
+          ? 'cat-pill px-3 py-1.5 rounded-lg text-xs font-semibold transition bg-indigo-600 text-white'
+          : 'cat-pill px-3 py-1.5 rounded-lg text-xs font-semibold transition bg-slate-100 text-slate-700 hover:bg-slate-200';
+      });
+      renderProducts();
+    }
+
+    function handleSearchAndFilter() { renderProducts(); }
+
+    function clearCatalogFilters() {
+      document.getElementById('searchInput').value = '';
+      document.getElementById('stockFilterSelect').value = 'all';
+      favoritesOnly = false;
+      selectCategory('all');
+    }
+
+    function toggleWishlist(productId) {
+      if (wishlist.includes(productId)) wishlist = wishlist.filter((id) => id !== productId);
+      else wishlist.push(productId);
+      localStorage.setItem('cloudmart_wishlist', JSON.stringify(wishlist));
+      document.getElementById('wishlistBadge').textContent = wishlist.length;
+      renderProducts();
+    }
+
+    function filterFavoritesOnly() {
+      favoritesOnly = !favoritesOnly;
+      switchMainView('store');
+      renderProducts();
+      showToast(favoritesOnly ? 'Đang lọc sản phẩm yêu thích' : 'Hiển thị tất cả sản phẩm', 'info');
+    }
+
+    function scrollToCatalog() {
+      document.getElementById('catalogToolbar').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function openProductModal(productId) {
+      const p = PRODUCTS.find((item) => item.id === productId);
+      if (!p) return;
+      document.getElementById('modalProductSku').textContent = p.sku;
+      document.getElementById('modalProductImg').src = getProductImage(p.id);
+      document.getElementById('modalProductCategory').textContent = p.categoryLabel || 'Hardware';
+      document.getElementById('modalProductName').textContent = p.name;
+      document.getElementById('modalProductRating').textContent = `★ ${p.rating || 4.8}`;
+      document.getElementById('modalProductStock').textContent = `Kho: ${p.stock} sản phẩm`;
+      document.getElementById('modalProductDesc').textContent = p.desc || '';
+      document.getElementById('modalProductPrice').textContent = formatVND(p.price);
+      document.getElementById('modalProductSpecs').innerHTML = (p.specs || []).map((s) => `<div>• ${s}</div>`).join('');
+      document.getElementById('modalAddToCartBtn').onclick = () => { addToCart(p.id, 1); closeProductModal(); };
+
+      const modal = document.getElementById('productModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeProductModal() {
+      const modal = document.getElementById('productModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    // =========================================================
+    // 8. LIVE ORDER SERVICE & SAGA CHECKOUT (PORT 3003)
+    // =========================================================
+    async function fetchRealOrders(notify = false) {
+      const t0 = performance.now();
+      try {
+        const res = await fetch(`${API_BASE_URL}/orders`);
+        const data = await res.json();
+        logApiTrace('GET', '/orders', res.status, Math.round(performance.now() - t0), 'LIVE-ORDER', `${(data.orders || []).length} orders`);
+        if (res.ok && Array.isArray(data.orders)) {
+          ORDERS = data.orders;
+          renderOrders();
+          if (notify) showToast(`Đã tải ${ORDERS.length} đơn hàng từ order-service`, 'success');
+        }
+      } catch (err) {
+        logApiTrace('GET', '/orders', 0, Math.round(performance.now() - t0), 'NETWORK-ERR', err.message);
+      }
+    }
+
+    function openCheckoutModal() {
+      if (!getAuthToken()) {
+        showToast('Cần đăng nhập trước khi đặt hàng', 'warning');
+        toggleCartDrawer();
+        openAuthModal();
+        return;
+      }
+      const { entries, total } = calculateCartTotals();
+      if (entries.length === 0) {
+        showToast('Giỏ hàng đang trống', 'warning');
+        return;
+      }
+      const user = getCurrentUser();
+      if (user && user.username) document.getElementById('custNameInput').value = user.username;
+      document.getElementById('checkoutModalTotal').textContent = formatVND(total);
+
+      const modal = document.getElementById('checkoutModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeCheckoutModal() {
+      const modal = document.getElementById('checkoutModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    async function submitOrderCheckout(e) {
+      e.preventDefault();
+      const paySvc = SERVICES_STATE.find((s) => s.id === 'payment-service');
+      if (paySvc && !paySvc.healthy) {
+        logApiTrace('POST', '/orders/checkout', 503, 8, 'CIRCUIT-BREAKER', 'payment-service DOWN');
+        showToast('503: payment-service đang tắt — Saga Rollback!', 'error');
+        return;
+      }
+
+      const { entries, total } = calculateCartTotals();
+      const customer = document.getElementById('custNameInput').value.trim();
+      const paymentMethod = document.getElementById('paymentMethodSelect').value;
+      const itemsPayload = entries.map((x) => ({
+        productId: x.productId,
+        name: x.product ? x.product.name : x.productId,
+        quantity: x.quantity
+      }));
+
+      const t0 = performance.now();
+      try {
+        const res = await fetch(`${API_BASE_URL}/orders/checkout`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${getAuthToken() || ''}`
+          },
+          body: JSON.stringify({ customer, paymentMethod, total, items: itemsPayload })
+        });
+        const data = await res.json().catch(() => ({}));
+        logApiTrace('POST', '/orders/checkout', res.status, Math.round(performance.now() - t0), 'LIVE-SAGA', data.order?.id || data.error || '');
+
+        if (!res.ok) {
+          showToast(data.error || `Checkout thất bại (${res.status})`, 'error');
+          return;
+        }
+
+        closeCheckoutModal();
+        toggleCartDrawer();
+        activeDiscountRate = 0;
+        await Promise.all([fetchRealCart(), fetchRealProducts(), fetchRealOrders(false)]);
+        switchMainView('orders');
+        showToast(`Đặt hàng thành công (${data.order?.id}) — đã trừ kho & xóa giỏ Redis!`, 'success');
+      } catch (err) {
+        logApiTrace('POST', '/orders/checkout', 0, Math.round(performance.now() - t0), 'NETWORK-ERR', err.message);
+        showToast('Không kết nối được order-service qua Gateway', 'error');
+      }
+    }
+
+    function renderOrders() {
+      document.getElementById('ordersNavBadge').textContent = ORDERS.length;
+      const box = document.getElementById('ordersListContainer');
+      const allSteps = ['ORDER_CREATED', 'INVENTORY_RESERVED', 'PAYMENT_SETTLED', 'SHIPPING_DISPATCHED'];
+
+      if (ORDERS.length === 0) {
+        box.innerHTML = '<div class="bg-white rounded-2xl p-8 text-center text-sm text-slate-500 border border-slate-200">Chưa có đơn hàng nào trong order-service.</div>';
+        return;
+      }
+
+      box.innerHTML = ORDERS.map((o) => {
+        const steps = o.steps || allSteps;
+        const items = o.items || [];
+        return `
+          <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+              <div>
+                <span class="font-mono-code font-bold text-indigo-600 text-sm">${o.id}</span>
+                <span class="text-xs text-slate-500 ml-2">${o.customer} • ${o.date || ''}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-mono-code px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-bold">${o.status}</span>
+                <span class="font-extrabold text-slate-900">${formatVND(o.total)}</span>
+              </div>
+            </div>
+            <div class="text-xs text-slate-600 space-y-1">
+              ${items.map((it) => `<div>• <strong>${it.name || it.productId}</strong> x${it.quantity || it.qty || 1}</div>`).join('')}
+              <div class="text-slate-400 pt-1">Thanh toán: ${o.paymentMethod || o.payment || 'VNPay QR'} ${o.sagaSteps?.transactionId ? `• TXN: ${o.sagaSteps.transactionId}` : ''}</div>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+              ${allSteps.map((st) => {
+                const done = steps.includes(st);
+                return `<div class="px-2.5 py-1.5 rounded-lg border text-[11px] font-mono-code text-center ${done ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-semibold' : 'bg-slate-50 border-slate-200 text-slate-400'}">${done ? '✓ ' : ''}${st}</div>`;
+              }).join('')}
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    // =========================================================
+    // 9. DEVOPS CONSOLE, HEALTH CHECK & CHARTS
+    // =========================================================
+    async function triggerGlobalHealthCheck() {
+      const t0 = performance.now();
+      try {
+        const res = await fetch(`${API_BASE_URL}/health-all`);
+        const data = await res.json();
+        logApiTrace('GET', '/health-all', res.status, Math.round(performance.now() - t0), 'LIVE-GATEWAY', JSON.stringify(data.services || {}));
+        if (res.ok && data.services) {
+          SERVICES_STATE.forEach((svc) => {
+            if (svc.id === 'api-gateway') { svc.healthy = true; return; }
+            if (data.services[svc.key]) svc.healthy = data.services[svc.key] === 'HEALTHY';
+          });
+          showToast('Đã đồng bộ trạng thái Health thật từ API Gateway', 'success');
+        }
+      } catch (err) {
+        logApiTrace('GET', '/health-all', 0, Math.round(performance.now() - t0), 'NETWORK-ERR', err.message);
+        showToast('Không ping được /api/v1/health-all (kiểm tra Gateway :3000)', 'warning');
+      }
+      renderHeroServices();
+      renderMicroservicesGrid();
+      updateDevOpsKPIs();
+    }
+
+    function toggleServiceHealth(id) {
+      const svc = SERVICES_STATE.find((s) => s.id === id);
+      if (!svc) return;
+      svc.healthy = !svc.healthy;
+      renderHeroServices();
+      renderMicroservicesGrid();
+      renderProducts();
+      updateDevOpsKPIs();
+      showToast(`${svc.id} -> ${svc.healthy ? 'RUNNING' : '503 DOWN'}`, svc.healthy ? 'success' : 'error');
+    }
+
+    function scalePods(id, delta) {
+      const svc = SERVICES_STATE.find((s) => s.id === id);
+      if (!svc) return;
+      svc.pods = Math.max(1, Math.min(8, svc.pods + delta));
+      renderMicroservicesGrid();
+      updateDevOpsKPIs();
+    }
+
+    function restoreAllServices() {
+      SERVICES_STATE.forEach((s) => { s.healthy = true; });
+      renderHeroServices();
+      renderMicroservicesGrid();
+      renderProducts();
+      updateDevOpsKPIs();
+      showToast('Đã khôi phục toàn bộ 6 Microservices', 'success');
+    }
+
+    function simulateTrafficBurst() {
+      const errCount = SERVICES_STATE.some((s) => !s.healthy) ? 8 : 0;
+      totalRequestsCount += 50;
+      totalErrorsCount += errCount;
+      trafficHistory.ok.push(50 - errCount);
+      trafficHistory.err.push(errCount);
+      trafficHistory.labels.push(new Date().toLocaleTimeString('vi-VN', { minute: '2-digit', second: '2-digit' }));
+      if (trafficHistory.labels.length > 8) {
+        trafficHistory.labels.shift();
+        trafficHistory.ok.shift();
+        trafficHistory.err.shift();
+      }
+      logApiTrace('LOAD', '/api/v1/*', errCount ? 503 : 200, 35, 'LOAD-TEST', `50 reqs (${errCount} err)`);
+      updateDevOpsKPIs();
+      showToast('Hoàn tất giả lập 50 requests qua Gateway', 'info');
+    }
+
+    function renderHeroServices() {
+      const box = document.getElementById('heroServiceGrid');
+      if (!box) return;
+      box.innerHTML = SERVICES_STATE.map((s) => `
+        <div class="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700/80">
+          <span class="truncate text-slate-200">${s.id}</span>
+          <span class="flex items-center gap-1 ${s.healthy ? 'text-emerald-400' : 'text-rose-400'} font-bold">
+            <span class="w-1.5 h-1.5 rounded-full ${s.healthy ? 'bg-emerald-400' : 'bg-rose-500'}"></span>
+            :${s.port}
+          </span>
+        </div>`).join('');
+    }
+
+    function renderMicroservicesGrid() {
+      const grid = document.getElementById('microservicesCardsGrid');
+      if (!grid) return;
+      grid.innerHTML = SERVICES_STATE.map((s) => `
+        <div class="bg-white rounded-2xl p-4 border ${s.healthy ? 'border-slate-200' : 'border-rose-300 bg-rose-50/40'} shadow-sm space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full ${s.healthy ? 'bg-emerald-500' : 'bg-rose-500'}"></span>
+              <span class="font-bold text-sm text-slate-900">${s.id}</span>
+            </div>
+            <span class="text-[10px] font-mono-code px-2 py-0.5 rounded-full font-bold ${s.healthy ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}">${s.healthy ? 'RUNNING' : 'DOWN 503'}</span>
+          </div>
+          <div class="bg-slate-50 rounded-xl p-3 border border-slate-200 font-mono-code text-[11px] text-slate-600 grid grid-cols-2 gap-1.5">
+            <div>Route: <strong>${s.endpoint}</strong></div>
+            <div>Port: <strong>:${s.port}</strong></div>
+            <div>DB: <strong>${s.db}</strong></div>
+            <div>Latency: <strong>${s.healthy ? s.latency + ' ms' : 'TIMEOUT'}</strong></div>
+          </div>
+          <div class="flex items-center justify-between pt-1">
+            <div class="flex items-center gap-1.5 text-xs">
+              <span class="text-slate-500">Pods:</span>
+              <button type="button" onclick="scalePods('${s.id}', -1)" class="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 font-bold">-</button>
+              <span class="font-mono-code font-bold w-4 text-center">${s.pods}</span>
+              <button type="button" onclick="scalePods('${s.id}', 1)" class="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 font-bold">+</button>
+            </div>
+            <button type="button" onclick="toggleServiceHealth('${s.id}')" class="px-3 py-1 rounded-lg text-xs font-semibold transition ${s.healthy ? 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200' : 'bg-emerald-600 text-white hover:bg-emerald-700'}">
+              ${s.healthy ? 'Giả lập lỗi 503' : 'Khôi phục Pod'}
+            </button>
+          </div>
+        </div>`).join('');
+    }
+
+    function updateDevOpsKPIs() {
+      const healthyCount = SERVICES_STATE.filter((s) => s.healthy).length;
+      const totalPods = SERVICES_STATE.reduce((sum, s) => sum + (s.healthy ? s.pods : 0), 0);
+      const avgLat = Math.round(SERVICES_STATE.reduce((sum, s) => sum + s.latency, 0) / SERVICES_STATE.length);
+      const errRate = totalRequestsCount ? ((totalErrorsCount / totalRequestsCount) * 100).toFixed(1) : '0';
+
+      document.getElementById('ribbonHealthSummary').textContent = `Services: ${healthyCount}/${SERVICES_STATE.length} Healthy`;
+      document.getElementById('kpiHealthyServices').textContent = `${healthyCount} / ${SERVICES_STATE.length}`;
+      document.getElementById('kpiTotalPods').textContent = `${totalPods} Pods`;
+      document.getElementById('kpiAvgLatency').textContent = `${avgLat} ms`;
+      document.getElementById('kpiTotalRequests').textContent = totalRequestsCount;
+      document.getElementById('kpiErrorRate').textContent = `Lỗi: ${errRate}% (${totalErrorsCount})`;
+
+      const badge = document.getElementById('kpiClusterStatusBadge');
+      badge.textContent = healthyCount === SERVICES_STATE.length ? 'HEALTHY' : 'DEGRADED';
+      badge.className = healthyCount === SERVICES_STATE.length
+        ? 'text-xs font-mono-code px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-semibold'
+        : 'text-xs font-mono-code px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 font-semibold';
+
+      updateCharts();
+    }
+
+    function initCharts() {
+      const latCtx = document.getElementById('latencyChartCanvas');
+      const trfCtx = document.getElementById('trafficChartCanvas');
+      if (!latCtx || !trfCtx || typeof Chart === 'undefined') return;
+
+      latencyChart = new Chart(latCtx, {
+        type: 'bar',
+        data: {
+          labels: SERVICES_STATE.map((s) => s.id.replace('-service', '')),
+          datasets: [{ label: 'P95 Latency (ms)', data: SERVICES_STATE.map((s) => s.latency), backgroundColor: '#6366f1', borderRadius: 6 }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+      });
+
+      trafficChart = new Chart(trfCtx, {
+        type: 'line',
+        data: {
+          labels: trafficHistory.labels,
+          datasets: [
+            { label: 'HTTP 2xx', data: trafficHistory.ok, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.12)', fill: true, tension: 0.3 },
+            { label: 'HTTP 4xx/5xx', data: trafficHistory.err, borderColor: '#f43f5e', backgroundColor: 'rgba(244,63,94,0.12)', fill: true, tension: 0.3 }
+          ]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+    }
+
+    function updateCharts() {
+      if (latencyChart) {
+        latencyChart.data.datasets[0].data = SERVICES_STATE.map((s) => (s.healthy ? s.latency : 0));
+        latencyChart.data.datasets[0].backgroundColor = SERVICES_STATE.map((s) => (s.healthy ? '#6366f1' : '#f43f5e'));
+        latencyChart.update('none');
+      }
+      if (trafficChart) trafficChart.update('none');
+    }
+
+    // =========================================================
+    // 10. NAVIGATION, CONFIG & BOOTSTRAP
+    // =========================================================
+    function switchMainView(view) {
+      ['store', 'orders', 'devops', 'config'].forEach((v) => {
+        document.getElementById(`view-${v}`).classList.toggle('hidden', v !== view);
+        const navBtn = document.getElementById(`navBtn-${v}`);
+        if (navBtn) {
+          navBtn.className = v === view
+            ? 'nav-tab-btn px-3.5 py-1.5 rounded-lg text-sm font-semibold transition flex items-center gap-1.5 bg-white text-indigo-600 shadow-sm'
+            : 'nav-tab-btn px-3.5 py-1.5 rounded-lg text-sm font-semibold transition flex items-center gap-1.5 text-slate-600 hover:text-slate-900';
+        }
+        const mobBtn = document.getElementById(`mobNav-${v}`);
+        if (mobBtn) {
+          mobBtn.className = v === view
+            ? 'flex-1 py-1.5 rounded-lg text-center text-indigo-600 bg-white shadow-sm'
+            : 'flex-1 py-1.5 rounded-lg text-center text-slate-600';
+        }
+      });
+      if (view === 'orders') fetchRealOrders(false);
+      if (view === 'devops') updateCharts();
+    }
+
+    function saveGatewayUrl() {
+      const val = document.getElementById('gatewayBaseUrlInput').value.trim().replace(/\/+$/, '');
+      if (!val) return;
+      API_BASE_URL = val;
+      localStorage.setItem('cloudmart_gateway_url', val);
+      document.getElementById('footerGatewayUrl').textContent = val;
+      showToast(`Đã lưu API Gateway URL: ${val}`, 'success');
+    }
+
+    const SNIPPETS = {
+      k3s: `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudmart-frontend
+  namespace: store-prod
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cloudmart-frontend
+  template:
+    metadata:
+      labels:
+        app: cloudmart-frontend
+    spec:
+      containers:
+        - name: nginx
+          image: cloudmart-frontend:latest
+          ports:
+            - containerPort: 80`,
+      dockerfile: `FROM nginx:alpine
+COPY index.html /usr/share/nginx/html/index.html
+EXPOSE 80`,
+      ansible: `- name: Deploy CloudMart Stack
+  hosts: k3s_nodes
+  become: true
+  tasks:
+    - name: Build and start containers
+      command: docker compose up -d --build`
+    };
+
+    function switchSnippetTab(tab) {
+      activeSnippetTab = tab;
+      ['k3s', 'dockerfile', 'ansible'].forEach((t) => {
+        document.getElementById(`snipBtn-${t}`).className = t === tab
+          ? 'px-2.5 py-1 rounded bg-indigo-600 text-white font-semibold'
+          : 'px-2.5 py-1 rounded bg-slate-800 text-slate-400 hover:text-white';
+      });
+      document.getElementById('manifestCodeBlock').textContent = SNIPPETS[tab];
+    }
+
+    function copyManifestCode() {
+      navigator.clipboard.writeText(SNIPPETS[activeSnippetTab] || '');
+      document.getElementById('copyBtnLabel').textContent = 'Đã copy!';
+      setTimeout(() => { document.getElementById('copyBtnLabel').textContent = 'Copy'; }, 1500);
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      document.getElementById('gatewayBaseUrlInput').value = API_BASE_URL;
+      document.getElementById('footerGatewayUrl').textContent = API_BASE_URL;
+      document.getElementById('wishlistBadge').textContent = wishlist.length;
+
+      renderHeroServices();
+      renderMicroservicesGrid();
+      switchSnippetTab('k3s');
+      initCharts();
+      syncAuthUI();
+      updateDevOpsKPIs();
+      lucide.createIcons();
+
+      await Promise.all([fetchRealProducts(), fetchRealOrders(false)]);
+      if (getAuthToken()) {
+        const ok = await verifyCurrentSession(false);
+        if (ok) await fetchRealCart();
+      } else {
+        renderCart();
+      }
+    });
+  </script>
+</body>
+</html>
